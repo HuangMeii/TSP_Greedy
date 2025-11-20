@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kết luận - So sánh thuật toán</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Inter, -apple-system, Roboto, Helvetica, sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-title {
+            font-size: 48px;
+            font-weight: 900;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .subtitle {
+            font-size: 24px;
+            font-weight: 400;
+            text-align: center;
+            margin-bottom: 40px;
+            color: #aaa;
+        }
+
+        .back-button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        .back-button:hover {
+            background: #45a049;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+            background: #2a2a2a;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .comparison-table th {
+            background: #3a3a3a;
+            padding: 20px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            border-bottom: 2px solid #4CAF50;
+        }
+
+        .comparison-table td {
+            padding: 18px;
+            text-align: center;
+            border-bottom: 1px solid #444;
+            font-size: 16px;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table tr:hover {
+            background: #333;
+        }
+
+        .algorithm-name {
+            font-weight: 600;
+            color: #4CAF50;
+        }
+
+        .best-value {
+            color: #4CAF50;
+            font-weight: 600;
+        }
+
+        .worst-value {
+            color: #f44336;
+            font-weight: 600;
+        }
+
+        .conclusion-section {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .conclusion-section h2 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #4CAF50;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+
+        .conclusion-section h3 {
+            font-size: 22px;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            color: #FFC107;
+        }
+
+        .conclusion-section p {
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 15px;
+            color: #ddd;
+        }
+
+        .conclusion-section ul {
+            margin-left: 30px;
+            margin-bottom: 15px;
+        }
+
+        .conclusion-section li {
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 10px;
+            color: #ddd;
+        }
+
+        .highlight-box {
+            background: #3a3a3a;
+            padding: 20px;
+            border-left: 4px solid #4CAF50;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .warning-box {
+            background: #3a2a2a;
+            padding: 20px;
+            border-left: 4px solid #f44336;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .chart-container {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 300px;
+            margin-top: 20px;
+        }
+
+        .bar {
+            width: 120px;
+            background: linear-gradient(to top, #4CAF50, #8BC34A);
+            border-radius: 8px 8px 0 0;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .bar:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.5);
+        }
+
+        .bar-label {
+            position: absolute;
+            bottom: -30px;
+            width: 100%;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .bar-value {
+            position: absolute;
+            top: -25px;
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            color: #4CAF50;
+            font-weight: 600;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .comparison-card {
+            background: #2a2a2a;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #444;
+            transition: all 0.3s;
+        }
+
+        .comparison-card:hover {
+            border-color: #4CAF50;
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .comparison-card h3 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .comparison-card .metric {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #444;
+        }
+
+        .comparison-card .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .metric-value {
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">← Quay lại trang chính</a>
+        
+        <div class="page-title">Kết luận & So sánh</div>
+        <div class="subtitle">Phân tích hiệu quả các thuật toán giải bài toán TSP</div>
+
+        <!-- Bảng so sánh -->
+        <div class="chart-container">
+            <h2 style="color: #4CAF50; margin-bottom: 20px;">Bảng so sánh tổng quan</h2>
+            <table class="comparison-table" id="comparisonTable">
+                <thead>
+                    <tr>
+                        <th>Thuật toán</th>
+                        <th>Quãng đường</th>
+                        <th>Độ dài (km)</th>
+                        <th>Thời gian (ms)</th>
+                        <th>Độ phức tạp</th>
+                        <th>Kết quả</th>
+                    </tr>
+                </thead>
+                <tbody id="comparisonBody">
+                    <tr>
+                        <td class="algorithm-name">Tham lam</td>
+                        <td id="greedy-path">-</td>
+                        <td id="greedy-distance">-</td>
+                        <td id="greedy-time">-</td>
+                        <td>O(n²)</td>
+                        <td>Tối ưu cục bộ</td>
+                    </tr>
+                    <tr>
+                        <td class="algorithm-name">Quy hoạch động</td>
+                        <td id="dynamic-path">-</td>
+                        <td id="dynamic-distance">-</td>
+                        <td id="dynamic-time">-</td>
+                        <td>O(n² × 2ⁿ)</td>
+                        <td>Tối ưu toàn cục</td>
+                    </tr>
+                    <tr>
+                        <td class="algorithm-name">Vét cạn</td>
+                        <td id="exhaustive-path">-</td>
+                        <td id="exhaustive-distance">-</td>
+                        <td id="exhaustive-time">-</td>
+                        <td>O(n!)</td>
+                        <td>Tối ưu toàn cục</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Biểu đồ so sánh -->
+        <div class="chart-container">
+            <h2 style="color: #4CAF50; margin-bottom: 20px;">Biểu đồ so sánh thời gian thực thi</h2>
+            <div class="bar-chart" id="timeChart"></div>
+        </div>
+
+        <!-- Cards so sánh chi tiết -->
+        <div class="comparison-grid" id="comparisonCards"></div>
+
+        <!-- Phần kết luận -->
+        <div class="conclusion-section">
+            <h2>Phân tích & Kết luận</h2>
+
+            <h3>1. Thuật toán Tham lam (Greedy - Nearest Neighbor)</h3>
+            
+            <div class="highlight-box">
+                <p><strong>Ưu điểm:</strong></p>
+                <ul>
+                    <li>Thời gian thực thi nhanh nhất - O(n²)</li>
+                    <li>Đơn giản, dễ hiểu và dễ cài đặt</li>
+                    <li>Tiêu tốn ít bộ nhớ</li>
+                    <li>Phù hợp với bài toán lớn (hàng trăm, hàng nghìn điểm)</li>
+                </ul>
+            </div>
+
+            <div class="warning-box">
+                <p><strong>Nhược điểm:</strong></p>
+                <ul>
+                    <li><strong>KHÔNG đảm bảo nghiệm tối ưu</strong> - chỉ cho nghiệm tối ưu cục bộ</li>
+                    <li>Có thể cho kết quả kém hơn 25-50% so với nghiệm tối ưu</li>
+                    <li>Phụ thuộc vào điểm xuất phát</li>
+                    <li>Dễ rơi vào "bẫy" chọn điểm gần nhưng dẫn đến đường đi dài về sau</li>
+                </ul>
+            </div>
+
+            <h3>2. Thuật toán Quy hoạch động (Dynamic Programming - Held-Karp)</h3>
+            
+            <div class="highlight-box">
+                <p><strong>Ưu điểm:</strong></p>
+                <ul>
+                    <li>Đảm bảo tìm được nghiệm tối ưu toàn cục</li>
+                    <li>Nhanh hơn vét cạn đáng kể - O(n² × 2ⁿ)</li>
+                    <li>Tránh tính toán lại các trường hợp đã xét (memoization)</li>
+                    <li>Phù hợp với bài toán vừa (10-20 điểm)</li>
+                </ul>
+            </div>
+
+            <div class="warning-box">
+                <p><strong>Nhược điểm:</strong></p>
+                <ul>
+                    <li>Tiêu tốn nhiều bộ nhớ - O(n × 2ⁿ)</li>
+                    <li>Thời gian tăng theo hàm mũ khi số điểm tăng</li>
+                    <li>Phức tạp trong cài đặt</li>
+                    <li>Không khả thi với n > 20</li>
+                </ul>
+            </div>
+
+            <h3>3. Thuật toán Vét cạn (Brute Force)</h3>
+            
+            <div class="highlight-box">
+                <p><strong>Ưu điểm:</strong></p>
+                <ul>
+                    <li>Đảm bảo tìm được nghiệm tối ưu tuyệt đối</li>
+                    <li>Đơn giản về mặt logic</li>
+                    <li>Phù hợp để kiểm chứng kết quả các thuật toán khác</li>
+                </ul>
+            </div>
+
+            <div class="warning-box">
+                <p><strong>Nhược điểm:</strong></p>
+                <ul>
+                    <li><strong>CHẬM NHẤT</strong> - Độ phức tạp O(n!)</li>
+                    <li>Chỉ khả thi với n ≤ 10</li>
+                    <li>Với n = 15: cần kiểm tra 1,307,674,368,000 đường đi!</li>
+                    <li>Không thực tế cho ứng dụng thực tế</li>
+                </ul>
+            </div>
+
+            <h3>4. Khi nào Tham lam KHÔNG hiệu quả?</h3>
+            
+            <div class="warning-box">
+                <p><strong>Trường hợp Tham lam cho kết quả kém:</strong></p>
+                <ul>
+                    <li><strong>Điểm gần nhưng "cô lập":</strong> Chọn điểm gần nhất nhưng sau đó phải đi xa để về các điểm còn lại</li>
+                    <li><strong>Phân bố điểm không đều:</strong> Có nhóm điểm gần nhau nhưng cách xa nhóm khác</li>
+                    <li><strong>Hình dạng đặc biệt:</strong> Điểm sắp xếp theo hình tròn, hình sao, v.v.</li>
+                    <li><strong>Yêu cầu tối ưu tuyệt đối:</strong> Khi cần kết quả chính xác 100%, không chấp nhận sai số</li>
+                </ul>
+            </div>
+
+            <div class="highlight-box">
+                <p><strong>Ví dụ điển hình:</strong></p>
+                <p>Giả sử có 4 điểm tạo thành hình vuông:</p>
+                <ul>
+                    <li>Tham lam có thể cho đường: A → B → D → C → A (đường chéo hình vuông)</li>
+                    <li>Tối ưu thực tế: A → B → C → D → A (đi theo cạnh hình vuông)</li>
+                    <li>Chênh lệch: √2 ≈ 1.41 lần!</li>
+                </ul>
+            </div>
+
+            <h3>5. Kết luận tổng quan</h3>
+            
+            <div class="highlight-box">
+                <p><strong>Lựa chọn thuật toán phù hợp:</strong></p>
+                <ul>
+                    <li><strong>Tham lam:</strong> Dùng khi cần tốc độ, số điểm lớn (> 20), chấp nhận sai số 10-50%</li>
+                    <li><strong>Quy hoạch động:</strong> Dùng khi cần tối ưu, số điểm vừa (10-20), có đủ bộ nhớ</li>
+                    <li><strong>Vét cạn:</strong> Chỉ dùng để kiểm chứng hoặc với bài toán rất nhỏ (< 10 điểm)</li>
+                </ul>
+            </div>
+
+            <div class="highlight-box">
+                <p><strong>Trong thực tế:</strong></p>
+                <p>Người ta thường kết hợp nhiều phương pháp:</p>
+                <ul>
+                    <li>Dùng Tham lam để tìm nghiệm ban đầu</li>
+                    <li>Áp dụng thuật toán cải tiến (2-opt, 3-opt) để tối ưu hóa</li>
+                    <li>Sử dụng Genetic Algorithm, Simulated Annealing cho bài toán lớn</li>
+                    <li>Kết hợp học máy để dự đoán nghiệm tốt</li>
+                </ul>
+            </div>
+        </div>
+
+        <a href="index.html" class="back-button">← Quay lại trang chính</a>
+    </div>
+
+    <script>
+        // Load dữ liệu từ localStorage
+        function loadComparisonData() {
+            const results = JSON.parse(localStorage.getItem('tsp-results') || '{}');
+            
+            // Cập nhật bảng
+            if (results.greedy) {
+                document.getElementById('greedy-path').textContent = results.greedy.path || '-';
+                document.getElementById('greedy-distance').textContent = results.greedy.distance || '-';
+                document.getElementById('greedy-time').textContent = results.greedy.time || '-';
+            }
+            
+            if (results.dynamic) {
+                document.getElementById('dynamic-path').textContent = results.dynamic.path || '-';
+                document.getElementById('dynamic-distance').textContent = results.dynamic.distance || '-';
+                document.getElementById('dynamic-time').textContent = results.dynamic.time || '-';
+            }
+            
+            if (results.exhaustive) {
+                document.getElementById('exhaustive-path').textContent = results.exhaustive.path || '-';
+                document.getElementById('exhaustive-distance').textContent = results.exhaustive.distance || '-';
+                document.getElementById('exhaustive-time').textContent = results.exhaustive.time || '-';
+            }
+
+            // Tạo biểu đồ
+            createTimeChart(results);
+            createComparisonCards(results);
+        }
+
+        function createTimeChart(results) {
+            const chart = document.getElementById('timeChart');
+            const times = {
+                greedy: results.greedy?.timeMs || 0,
+                dynamic: results.dynamic?.timeMs || 0,
+                exhaustive: results.exhaustive?.timeMs || 0
+            };
+
+            const maxTime = Math.max(...Object.values(times));
+            
+            chart.innerHTML = `
+                <div class="bar" style="height: ${(times.greedy / maxTime * 250)}px; background: linear-gradient(to top, #4CAF50, #8BC34A);">
+                    <div class="bar-value">${times.greedy.toFixed(2)}ms</div>
+                    <div class="bar-label">Tham lam</div>
+                </div>
+                <div class="bar" style="height: ${(times.dynamic / maxTime * 250)}px; background: linear-gradient(to top, #2196F3, #64B5F6);">
+                    <div class="bar-value">${times.dynamic.toFixed(2)}ms</div>
+                    <div class="bar-label">QHĐ</div>
+                </div>
+                <div class="bar" style="height: ${(times.exhaustive / maxTime * 250)}px; background: linear-gradient(to top, #f44336, #e57373);">
+                    <div class="bar-value">${times.exhaustive.toFixed(2)}ms</div>
+                    <div class="bar-label">Vét cạn</div>
+                </div>
+            `;
+        }
+
+        function createComparisonCards(results) {
+            const container = document.getElementById('comparisonCards');
+            
+            const algorithms = [
+                { name: 'Tham lam', key: 'greedy', color: '#4CAF50' },
+                { name: 'Quy hoạch động', key: 'dynamic', color: '#2196F3' },
+                { name: 'Vét cạn', key: 'exhaustive', color: '#f44336' }
+            ];
+
+            container.innerHTML = algorithms.map(alg => {
+                const data = results[alg.key] || {};
+                return `
+                    <div class="comparison-card">
+                        <h3 style="color: ${alg.color}">${alg.name}</h3>
+                        <div class="metric">
+                            <span class="metric-label">Quãng đường:</span>
+                            <span class="metric-value">${data.distance || '-'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Thời gian:</span>
+                            <span class="metric-value">${data.time || '-'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Số điểm:</span>
+                            <span class="metric-value">${data.points || '-'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Hiệu quả:</span>
+                            <span class="metric-value">${data.efficiency || '-'}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Load dữ liệu khi trang được tải
+        window.addEventListener('load', loadComparisonData);
+    </script>
+</body>
+</html>

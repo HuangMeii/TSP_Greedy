@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thuật toán cải tiến - GA + ASA + Multi-Start</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Inter, -apple-system, Roboto, Helvetica, sans-serif;
+            background: linear-gradient(135deg, #E8F5E9 0%, #FFF9C4 50%, #E1F5FE 100%);
+            position: relative;
+            min-height: 100vh;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .page-title {
+            text-align: center;
+            color: #2E7D32;
+            font-size: 36px;
+            font-weight: 900;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(46, 125, 50, 0.3);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #F57C00;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .visualization-area {
+            background: #FFFEF7;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(46, 125, 50, 0.15);
+            position: relative;
+            height: 500px;
+        }
+
+        .controls-panel {
+            background: linear-gradient(135deg, #F1F8E9 0%, #FFF8E1 100%);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(46, 125, 50, 0.2);
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-label {
+            color: #2E7D32;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .control-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #81C784;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            transition: all 0.3s;
+        }
+
+        .control-input:focus {
+            outline: none;
+            border-color: #2E7D32;
+            box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #66BB6A 0%, #81C784 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 187, 106, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 187, 106, 0.6);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #FFA726 0%, #FFB74D 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 167, 38, 0.4);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 167, 38, 0.6);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #EF5350 0%, #E57373 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(239, 83, 80, 0.4);
+        }
+
+        .results-section {
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #E0E0E0;
+        }
+
+        .result-label {
+            color: #558B2F;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .result-value {
+            color: #2E7D32;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .algorithm-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #81C784;
+            background: white;
+            color: #2E7D32;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #66BB6A 0%, #81C784 100%);
+            color: white;
+            border-color: #2E7D32;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #E0E0E0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #66BB6A 0%, #81C784 100%);
+            transition: width 0.3s;
+        }
+
+        .log-container {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #FAFAFA;
+            border-radius: 6px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #424242;
+        }
+
+        .comparison-table {
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: linear-gradient(135deg, #66BB6A 0%, #81C784 100%);
+            color: white;
+            padding: 12px;
+            font-size: 13px;
+        }
+
+        .comparison-table td {
+            padding: 10px;
+            border-bottom: 1px solid #E0E0E0;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .best-result {
+            background: #E8F5E9;
+            font-weight: 700;
+            color: #2E7D32;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #42A5F5 0%, #64B5F6 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 700;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(66, 165, 245, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="page-title">🧬 Thuật toán cải tiến TSP</h1>
+        <p class="subtitle">Kết hợp GA + ASA + Multi-Start Optimization</p>
+
+        <div class="main-grid">
+            <div class="visualization-area">
+                <!-- Canvas sẽ được thêm bằng JavaScript -->
+            </div>
+
+            <div class="controls-panel">
+                <div class="control-group">
+                    <label class="control-label">Số điểm giao hàng:</label>
+                    <input type="number" class="control-input" id="numPoints" value="8" min="3" max="15">
+                </div>
+
+                <button class="btn btn-secondary" onclick="generatePoints()">🎲 Tạo điểm ngẫu nhiên</button>
+
+                <div class="algorithm-tabs">
+                    <button class="tab-btn active" data-algo="ga-asa">GA+ASA</button>
+                    <button class="tab-btn" data-algo="multi-start">Multi-Start</button>
+                    <button class="tab-btn" data-algo="hybrid">Hybrid</button>
+                </div>
+
+                <div id="ga-asa-controls">
+                    <div class="control-group">
+                        <label class="control-label">Kích thước quần thể:</label>
+                        <input type="number" class="control-input" id="populationSize" value="10" min="5" max="30">
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Số thế hệ:</label>
+                        <input type="number" class="control-input" id="generations" value="5" min="2" max="20">
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Số vòng lặp ASA:</label>
+                        <input type="number" class="control-input" id="asaIterations" value="1000" min="500" max="5000">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="runOptimization()">▶️ Chạy tối ưu hóa</button>
+                <button class="btn btn-danger" onclick="clearAll()">🗑️ Xóa tất cả</button>
+
+                <div class="results-section">
+                    <h3 style="color: #2E7D32; margin-bottom: 10px;">📊 Kết quả</h3>
+                    <div class="result-row">
+                        <span class="result-label">Thuật toán:</span>
+                        <span class="result-value" id="algoName">-</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Quãng đường tốt nhất:</span>
+                        <span class="result-value" id="bestDistance">-</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Thời gian:</span>
+                        <span class="result-value" id="execTime">-</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Thế hệ/Lần thử:</span>
+                        <span class="result-value" id="iterations">-</span>
+                    </div>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+                    </div>
+                    <div id="progressText" style="text-align: center; color: #558B2F; font-weight: 600;">Sẵn sàng</div>
+                </div>
+
+                <div class="log-container" id="logContainer">
+                    Chờ chạy thuật toán...
+                </div>
+            </div>
+        </div>
+
+        <div class="comparison-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Thuật toán</th>
+                        <th>Quãng đường (km)</th>
+                        <th>Thời gian (ms)</th>
+                        <th>Cải thiện so với Greedy</th>
+                    </tr>
+                </thead>
+                <tbody id="comparisonBody">
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #9E9E9E;">Chưa có dữ liệu so sánh</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <a href="index.html" class="back-link">← Quay lại trang chính</a>
+    </div>
+
+    <script src="improved.js"></script>
+</body>
+</html>

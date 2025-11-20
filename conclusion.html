@@ -326,9 +326,7 @@
             <div class="highlight-box">
                 <p><strong>Ưu điểm:</strong></p>
                 <ul>
-                    <li>Thời gian thực thi nhanh nhất - O(n²)</li>
-                    <li>Đơn giản, dễ hiểu và dễ cài đặt</li>
-                    <li>Tiêu tốn ít bộ nhớ</li>
+                    <li>Đơn giản và nhanh nhất O(n²)</li>
                     <li>Phù hợp với bài toán lớn (hàng trăm, hàng nghìn điểm)</li>
                 </ul>
             </div>
@@ -386,29 +384,9 @@
                 </ul>
             </div>
 
-            <h3>4. Khi nào Tham lam KHÔNG hiệu quả?</h3>
-            
-            <div class="warning-box">
-                <p><strong>Trường hợp Tham lam cho kết quả kém:</strong></p>
-                <ul>
-                    <li><strong>Điểm gần nhưng "cô lập":</strong> Chọn điểm gần nhất nhưng sau đó phải đi xa để về các điểm còn lại</li>
-                    <li><strong>Phân bố điểm không đều:</strong> Có nhóm điểm gần nhau nhưng cách xa nhóm khác</li>
-                    <li><strong>Hình dạng đặc biệt:</strong> Điểm sắp xếp theo hình tròn, hình sao, v.v.</li>
-                    <li><strong>Yêu cầu tối ưu tuyệt đối:</strong> Khi cần kết quả chính xác 100%, không chấp nhận sai số</li>
-                </ul>
-            </div>
 
-            <div class="highlight-box">
-                <p><strong>Ví dụ điển hình:</strong></p>
-                <p>Giả sử có 4 điểm tạo thành hình vuông:</p>
-                <ul>
-                    <li>Tham lam có thể cho đường: A → B → D → C → A (đường chéo hình vuông)</li>
-                    <li>Tối ưu thực tế: A → B → C → D → A (đi theo cạnh hình vuông)</li>
-                    <li>Chênh lệch: √2 ≈ 1.41 lần!</li>
-                </ul>
-            </div>
 
-            <h3>5. Kết luận tổng quan</h3>
+            <h3>4. Kết luận tổng quan</h3>
             
             <div class="highlight-box">
                 <p><strong>Lựa chọn thuật toán phù hợp:</strong></p>
@@ -416,17 +394,6 @@
                     <li><strong>Tham lam:</strong> Dùng khi cần tốc độ, số điểm lớn (> 20), chấp nhận sai số 10-50%</li>
                     <li><strong>Quy hoạch động:</strong> Dùng khi cần tối ưu, số điểm vừa (10-20), có đủ bộ nhớ</li>
                     <li><strong>Vét cạn:</strong> Chỉ dùng để kiểm chứng hoặc với bài toán rất nhỏ (< 10 điểm)</li>
-                </ul>
-            </div>
-
-            <div class="highlight-box">
-                <p><strong>Trong thực tế:</strong></p>
-                <p>Người ta thường kết hợp nhiều phương pháp:</p>
-                <ul>
-                    <li>Dùng Tham lam để tìm nghiệm ban đầu</li>
-                    <li>Áp dụng thuật toán cải tiến (2-opt, 3-opt) để tối ưu hóa</li>
-                    <li>Sử dụng Genetic Algorithm, Simulated Annealing cho bài toán lớn</li>
-                    <li>Kết hợp học máy để dự đoán nghiệm tốt</li>
                 </ul>
             </div>
         </div>

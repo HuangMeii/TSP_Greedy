@@ -156,8 +156,8 @@ async function runAlgorithm(algorithm) {
     resetAnimation();
     
     selectedAlgorithm = algorithm;
-    const startTime = performance.now();
-    
+    // ✅ ĐÚNG - Đo thời gian THUẦN của thuật toán
+    const startTime = performance.now(); // Đo TRƯỚC khi chạy
     let result;
     switch (algorithm) {
         case 'greedy':
@@ -170,8 +170,7 @@ async function runAlgorithm(algorithm) {
             result = dynamicTSP();
             break;
     }
-    
-    const endTime = performance.now();
+    const endTime = performance.now(); // Đo NGAY SAU khi chạy xong
     const executionTime = endTime - startTime;
     
     displayResults(algorithm, result, executionTime);
@@ -660,15 +659,16 @@ function greedyTSP() {
 
 // Thuật toán Vét cạn (Brute Force)
 function exhaustiveTSP() {
-    if (points.length < 2) return { path: [], distance: 0 };
+    if (points.length < 2) return { path: [], distance: 0, maxDistance: 0 };
     if (points.length > 10) {
         alert('Vét cạn chỉ khả thi với <= 10 điểm!');
-        return { path: [], distance: 0 };
+        return { path: [], distance: 0, maxDistance: 0 };
     }
     
     const indices = [...Array(points.length).keys()].slice(1);
     let minPath = null;
     let minDistance = Infinity;
+    let maxDistance = 0; // Thêm biến lưu quãng đường dài nhất
     
     function permute(arr, start = 0) {
         if (start === arr.length - 1) {
@@ -677,9 +677,16 @@ function exhaustiveTSP() {
             for (let i = 0; i < path.length - 1; i++) {
                 dist += distance(points[path[i]], points[path[i + 1]]);
             }
+            
+            // Cập nhật đường đi ngắn nhất
             if (dist < minDistance) {
                 minDistance = dist;
                 minPath = [...path];
+            }
+            
+            // Cập nhật quãng đường dài nhất
+            if (dist > maxDistance) {
+                maxDistance = dist;
             }
             return;
         }
@@ -692,7 +699,7 @@ function exhaustiveTSP() {
     }
     
     permute(indices);
-    return { path: minPath, distance: minDistance };
+    return { path: minPath, distance: minDistance, maxDistance: maxDistance };
 }
 
 // Thuật toán Quy hoạch động (Dynamic Programming)
@@ -788,7 +795,8 @@ function saveResults(algorithm, result, time) {
         time: time ? time.toFixed(1) + 'ms' : '-',
         timeMs: time || 0,
         points: points.length,
-        efficiency: algorithm === 'greedy' ? 'Nhanh' : (algorithm === 'dynamic' ? 'Cân bằng' : 'Chậm')
+        efficiency: algorithm === 'greedy' ? 'Nhanh' : (algorithm === 'dynamic' ? 'Cân bằng' : 'Chậm'),
+        maxDistance: result.maxDistance ? (result.maxDistance * 0.01).toFixed(1) + ' km' : '0.0 km' // Thêm dòng này
     };
     
     localStorage.setItem('tsp-results', JSON.stringify(results));
@@ -817,7 +825,6 @@ function displayResults(algorithm, result, time) {
     
     let pathText = '';
     if (result.path && result.path.length > 0) {
-        // Nếu có nhiều hơn 8 điểm, rút gọn hiển thị
         if (result.path.length > 10) {
             const first4 = result.path.slice(0, 4).join(' → ');
             const last4 = result.path.slice(-4).join(' → ');
@@ -835,6 +842,14 @@ function displayResults(algorithm, result, time) {
     
     document.querySelector('.execution-time-value').textContent = 
         time ? `${time.toFixed(1)}ms` : '0.0ms';
+    
+    // Hiển thị quãng đường dài nhất (chỉ cho thuật toán vét cạn)
+    if (algorithm === 'exhaustive' && result.maxDistance) {
+        const maxDistanceInKm = (result.maxDistance * 0.01).toFixed(1);
+        document.querySelector('.max-distance').textContent = maxDistanceInKm + ' km';
+    } else {
+        document.querySelector('.max-distance').textContent = '0.0 km';
+    }
 }
 
 // Animation từng bước
@@ -864,8 +879,8 @@ async function runAlgorithm(algorithm) {
     resetAnimation();
     
     selectedAlgorithm = algorithm;
-    const startTime = performance.now();
-    
+    // ✅ ĐÚNG - Đo thời gian THUẦN của thuật toán
+    const startTime = performance.now(); // Đo TRƯỚC khi chạy
     let result;
     switch (algorithm) {
         case 'greedy':
@@ -878,8 +893,7 @@ async function runAlgorithm(algorithm) {
             result = dynamicTSP();
             break;
     }
-    
-    const endTime = performance.now();
+    const endTime = performance.now(); // Đo NGAY SAU khi chạy xong
     const executionTime = endTime - startTime;
     
     displayResults(algorithm, result, executionTime);
@@ -950,11 +964,13 @@ function runAllSteps() {
             const algoName = algo === 'greedy' ? 'Tham lam' : algo === 'dynamic' ? 'Quy hoạch động' : 'Vét cạn';
             statusDiv.textContent = `Đang chạy: ${algoName}...`;
             
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(resolve => setTimeout(resolve, 100));
             
-            const startTime = performance.now();
             let result;
             let skipped = false;
+            
+            // ✅ Di chuyển xuống đây
+            const startTime = performance.now(); 
             
             try {
                 switch (algo) {
@@ -966,12 +982,8 @@ function runAllSteps() {
                             statusDiv.textContent = `⚠️ Vét cạn bỏ qua (quá nhiều điểm: ${points.length})`;
                             await new Promise(resolve => setTimeout(resolve, 1000));
                             skipped = true;
-                            result = { path: [], distance: 0 };
-                            results[algo] = {
-                                path: null,
-                                distance: null,
-                                time: 0
-                            };
+                            result = { path: [], distance: 0, maxDistance: 0 };
+                            results[algo] = { path: null, distance: null, time: 0 };
                             break;
                         }
                         result = exhaustiveTSP();
@@ -982,35 +994,28 @@ function runAllSteps() {
                             await new Promise(resolve => setTimeout(resolve, 1000));
                             skipped = true;
                             result = { path: [], distance: 0 };
-                            results[algo] = {
-                                path: null,
-                                distance: null,
-                                time: 0
-                            };
+                            results[algo] = { path: null, distance: null, time: 0 };
                             break;
                         }
                         result = dynamicTSP();
                         break;
                 }
                 
+                const endTime = performance.now();
+                
                 if (!skipped && result && result.path && result.path.length > 0) {
-                    const endTime = performance.now();
-                    
                     results[algo] = {
                         path: result.path,
                         distance: result.distance,
-                        time: endTime - startTime
+                        time: endTime - startTime,
+                        maxDistance: result.maxDistance || 0 // ✅ Thêm dòng này
                     };
                     
                     saveResults(algo, result, endTime - startTime);
                 }
             } catch (error) {
                 console.error(`Lỗi khi chạy ${algo}:`, error);
-                results[algo] = {
-                    path: null,
-                    distance: null,
-                    time: 0
-                };
+                results[algo] = { path: null, distance: null, time: 0 };
             }
         }
         

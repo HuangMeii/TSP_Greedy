@@ -239,7 +239,7 @@ function nextStep() {
         
         currentStep++;
         drawPathStep(currentPath, currentStep);
-        updateProgress(currentStep - 1, currentPath.length - 1);
+        updateProgress(currentStep, currentPath.length - 1); // SỬA: Bỏ - 1
     }
 }
 
@@ -264,89 +264,152 @@ function calculateDistanceMatrix() {
     return matrix;
 }
 
-// Hiển thị ma trận khoảng cách với nút phóng to
+// Hiển thị ma trận khoảng cách - SỬA LẠI (BỎ NÚT PHÓNG TO TRONG TABLE)
 function displayDistanceMatrix() {
     const matrix = calculateDistanceMatrix();
     const resultsDisplay = document.querySelector('.results-display');
+    const zoomBtn = document.getElementById('zoom-matrix-btn');
     
     if (points.length === 0 || points.length === 1) {
-        resultsDisplay.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">Cần ít nhất 2 điểm để hiển thị ma trận</div>';
+        resultsDisplay.innerHTML = '<div style="padding: 20px; text-align: center; color: #999; font-size: 14px;">Cần ít nhất 2 điểm để hiển thị ma trận</div>';
+        if (zoomBtn) zoomBtn.style.display = 'none';
         return;
     }
     
-    let html = '<div style="padding: 15px;">';
-    
-    // Nút phóng to nếu có > 5 điểm (bao gồm cả điểm 0)
-    if (points.length > 5) {
-        html += '<button onclick="showFullMatrix()" style="margin-bottom: 10px; padding: 8px 16px; background: linear-gradient(135deg, #FF69B4, #FFB6C1); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(255, 105, 180, 0.3); transition: all 0.3s;">🔍 Phóng To Ma Trận</button>';
+    // Hiện/ẩn nút phóng to
+    if (zoomBtn) {
+        zoomBtn.style.display = points.length > 6 ? 'block' : 'none';
     }
     
-    html += '<div style="overflow: auto; max-height: 230px;">';
-    html += '<table style="border-collapse: collapse; font-size: 11px; width: 100%;">';
+    let html = '<div style="padding: 20px;">';
+    html += '<div style="overflow: auto; max-height: 215px;">';
+    html += '<table style="border-collapse: separate; border-spacing: 0; font-size: 12px; width: 100%; box-shadow: 0 2px 8px rgba(255, 107, 157, 0.1);">';
     
     // Header
-    html += '<tr><th style="border: 1px solid #FFB6D9; padding: 6px; background: linear-gradient(135deg, #FFE4E1, #FFF0F5); font-weight: bold; color: #8B4789;">•</th>';
+    html += '<thead><tr><th style="position: sticky; left: 0; z-index: 3; border: none; padding: 10px 12px; background: linear-gradient(135deg, #FF69B4, #FFB6C1); font-weight: 700; color: white; text-align: center; border-top-left-radius: 8px;">•</th>';
     for (let i = 0; i < points.length; i++) {
-        html += `<th style="border: 1px solid #FFB6D9; padding: 6px; background: linear-gradient(135deg, #FFE4E1, #FFF0F5); font-weight: bold; color: #8B4789;">Đ${i}</th>`;
+        const isLast = i === points.length - 1;
+        html += `<th style="position: sticky; top: 0; z-index: 2; border: none; padding: 10px 12px; background: linear-gradient(135deg, #FF69B4, #FFB6C1); font-weight: 700; color: white; text-align: center; ${isLast ? 'border-top-right-radius: 8px;' : ''}">Đ${i}</th>`;
     }
-    html += '</tr>';
+    html += '</tr></thead>';
     
-    // Data
+    // Body
+    html += '<tbody>';
     for (let i = 0; i < points.length; i++) {
+        const isLastRow = i === points.length - 1;
         html += '<tr>';
-        html += `<th style="border: 1px solid #FFB6D9; padding: 6px; background: linear-gradient(135deg, #FFE4E1, #FFF0F5); font-weight: bold; color: #8B4789;">Đ${i}</th>`;
+        html += `<th style="position: sticky; left: 0; z-index: 1; border: none; padding: 10px 12px; background: linear-gradient(135deg, #FFB6C1, #FFC0CB); font-weight: 700; color: white; text-align: center; ${isLastRow ? 'border-bottom-left-radius: 8px;' : ''}">Đ${i}</th>`;
         for (let j = 0; j < points.length; j++) {
-            const value = i === j ? '-' : matrix[i][j].toFixed(1);
-            const bgColor = i === j ? '#FFE4E1' : '#FFFAF0';
-            html += `<td style="border: 1px solid #FFB6D9; padding: 6px; text-align: center; background: ${bgColor}; color: #8B4789;">${value}</td>`;
+            const value = i === j ? '—' : matrix[i][j].toFixed(1);
+            const isDiagonal = i === j;
+            const isLastCol = j === points.length - 1;
+            const bgColor = isDiagonal ? '#FFE4E1' : (i % 2 === 0 ? '#FFFAF0' : '#FFF5F5');
+            
+            html += `<td style="
+                border: none; 
+                padding: 10px 12px; 
+                text-align: center; 
+                background: ${bgColor}; 
+                color: ${isDiagonal ? '#999' : '#8B4789'}; 
+                font-weight: ${isDiagonal ? '400' : '600'};
+                ${isLastRow && isLastCol ? 'border-bottom-right-radius: 8px;' : ''}
+            ">${value}</td>`;
         }
         html += '</tr>';
     }
+    html += '</tbody>';
     
     html += '</table></div></div>';
     resultsDisplay.innerHTML = html;
 }
 
-// Hàm hiển thị ma trận full size
-window.showFullMatrix = function() {
+// Hiển thị ma trận phóng to trong modal - SỬA LẠI
+function showFullMatrix() {
     const matrix = calculateDistanceMatrix();
+    
     const modal = document.createElement('div');
     modal.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(139, 69, 137, 0.8); z-index: 10000;
-        display: flex; justify-content: center; align-items: center;
-        padding: 20px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 10000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 30px;
     `;
     
-    let html = '<div style="background: linear-gradient(135deg, #FFF0F5, #FFFAF0); padding: 30px; border-radius: 15px; max-width: 95%; max-height: 90%; overflow: auto; box-shadow: 0 10px 40px rgba(255, 107, 157, 0.4);">';
-    html += '<h2 style="margin-bottom: 20px; color: #FF6B9D; text-align: center; font-size: 24px;">📊 Ma Trận Khoảng Cách Đầy Đủ</h2>';
-    html += '<table style="border-collapse: collapse; font-size: 14px; margin: 0 auto;">';
+    let modalContent = `
+        <div style="
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            box-shadow: 0 10px 40px rgba(255, 105, 180, 0.3);
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: #FF69B4; margin: 0; font-size: 24px; font-weight: 700;">📊 Ma trận khoảng cách đầy đủ</h2>
+                <button onclick="this.closest('div').parentElement.remove()" style="
+                    padding: 10px 20px;
+                    background: linear-gradient(135deg, #FF4444, #FF6B6B);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 16px;
+                    font-weight: 600;
+                    box-shadow: 0 3px 10px rgba(255, 68, 68, 0.3);
+                ">✖ Đóng</button>
+            </div>
+            <div style="overflow: auto;">
+                <table style="border-collapse: separate; border-spacing: 0; width: 100%; font-size: 14px; box-shadow: 0 2px 8px rgba(255, 107, 157, 0.1);">
+                    <thead><tr><th style="border: none; padding: 12px 15px; background: linear-gradient(135deg, #FF69B4, #FFB6C1); color: white; font-weight: 700; text-align: center; border-top-left-radius: 8px;">•</th>`;
     
-    html += '<tr><th style="border: 2px solid #FF69B4; padding: 12px; background: linear-gradient(135deg, #FF69B4, #FFB6C1); color: white; font-weight: bold;">•</th>';
     for (let i = 0; i < points.length; i++) {
-        html += `<th style="border: 2px solid #FF69B4; padding: 12px; background: linear-gradient(135deg, #FF69B4, #FFB6C1); color: white; font-weight: bold;">Điểm ${i}</th>`;
+        const isLast = i === points.length - 1;
+        modalContent += `<th style="border: none; padding: 12px 15px; background: linear-gradient(135deg, #FF69B4, #FFB6C1); color: white; font-weight: 700; text-align: center; ${isLast ? 'border-top-right-radius: 8px;' : ''}">Đ${i}</th>`;
     }
-    html += '</tr>';
+    modalContent += '</tr></thead><tbody>';
     
     for (let i = 0; i < points.length; i++) {
-        html += '<tr>';
-        html += `<th style="border: 2px solid #FF69B4; padding: 12px; background: linear-gradient(135deg, #FF69B4, #FFB6C1); color: white; font-weight: bold;">Điểm ${i}</th>`;
+        const isLastRow = i === points.length - 1;
+        modalContent += '<tr>';
+        modalContent += `<th style="border: none; padding: 12px 15px; background: linear-gradient(135deg, #FFB6C1, #FFC0CB); color: white; font-weight: 700; text-align: center; ${isLastRow ? 'border-bottom-left-radius: 8px;' : ''}">Đ${i}</th>`;
         for (let j = 0; j < points.length; j++) {
-            const value = i === j ? '-' : matrix[i][j].toFixed(2);
-            const bgColor = i === j ? '#FFE4E1' : (i === 0 || j === 0 ? '#FFF0F5' : '#FFFAF0');
-            html += `<td style="border: 1px solid #FFB6D9; padding: 12px; text-align: center; background: ${bgColor}; font-weight: ${i===j ? 'bold' : 'normal'}; color: #8B4789;">${value}</td>`;
+            const value = i === j ? '—' : matrix[i][j].toFixed(1);
+            const isDiagonal = i === j;
+            const isLastCol = j === points.length - 1;
+            const bgColor = isDiagonal ? '#FFE4E1' : (i % 2 === 0 ? '#FFFAF0' : '#FFF5F5');
+            
+            modalContent += `<td style="
+                border: none; 
+                padding: 12px 15px; 
+                text-align: center; 
+                background: ${bgColor}; 
+                color: ${isDiagonal ? '#999' : '#8B4789'}; 
+                font-weight: ${isDiagonal ? '400' : '600'};
+                ${isLastRow && isLastCol ? 'border-bottom-right-radius: 8px;' : ''}
+            ">${value}</td>`;
         }
-        html += '</tr>';
+        modalContent += '</tr>';
     }
     
-    html += '</table>';
-    html += '<button style="margin-top: 20px; padding: 12px 24px; background: linear-gradient(135deg, #FF1493, #FF69B4); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; box-shadow: 0 4px 15px rgba(255, 20, 147, 0.4); display: block; margin-left: auto; margin-right: auto;" onclick="this.closest(\'div\').parentElement.remove()">✖ Đóng</button>';
-    html += '</div>';
+    modalContent += '</tbody></table></div></div>';
+    modal.innerHTML = modalContent;
     
-    modal.innerHTML = html;
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     document.body.appendChild(modal);
-};
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
 
 // Hàm hiển thị bảng so sánh kết quả
 function showComparisonTable(results) {
@@ -732,12 +795,36 @@ function saveResults(algorithm, result, time) {
 }
 
 // Hiển thị kết quả
+// function displayResults(algorithm, result, time) {
+//     saveResults(algorithm, result, time);
+    
+//     let pathText = '';
+//     if (result.path && result.path.length > 0) {
+//         pathText = result.path.join(' → ');
+//     } else {
+//         pathText = 'Chưa có đường đi';
+//     }
+//     document.querySelector('.distance-value').textContent = pathText;
+    
+//     const distanceInKm = result.distance ? (result.distance * 0.01).toFixed(1) : '0.0';
+//     document.querySelector('.total-distance-value').textContent = distanceInKm + ' km';
+    
+//     document.querySelector('.execution-time-value').textContent = 
+//         time ? `${time.toFixed(1)}ms` : '0.0ms';
+// }
 function displayResults(algorithm, result, time) {
     saveResults(algorithm, result, time);
     
     let pathText = '';
     if (result.path && result.path.length > 0) {
-        pathText = result.path.join(' → ');
+        // Nếu có nhiều hơn 8 điểm, rút gọn hiển thị
+        if (result.path.length > 10) {
+            const first4 = result.path.slice(0, 4).join(' → ');
+            const last4 = result.path.slice(-4).join(' → ');
+            pathText = `${first4} → ... → ${last4}`;
+        } else {
+            pathText = result.path.join(' → ');
+        }
     } else {
         pathText = 'Chưa có đường đi';
     }
@@ -824,10 +911,10 @@ async function runAlgorithm(algorithm) {
     }
 }
 
-// Run all steps - SỬA LẠI
+// Run all steps - SỬA LẠI HÀM NÀY
 function runAllSteps() {
-    if (!currentPath || currentPath.length === 0) {
-        alert('⚠️ Vui lòng chọn thuật toán trước!\n\nClick vào một trong 3 nút: Tham lam, QHĐ, hoặc Vét cạn.');
+    if (points.length < 2) {
+        alert('⚠️ Vui lòng tạo ít nhất 2 điểm!');
         return;
     }
     
@@ -835,6 +922,9 @@ function runAllSteps() {
         clearInterval(animationInterval);
         animationInterval = null;
     }
+    
+    // Reset animation
+    resetAnimation();
     
     // Hiển thị loading
     const loadingDiv = document.createElement('div');
@@ -876,6 +966,12 @@ function runAllSteps() {
                             statusDiv.textContent = `⚠️ Vét cạn bỏ qua (quá nhiều điểm: ${points.length})`;
                             await new Promise(resolve => setTimeout(resolve, 1000));
                             skipped = true;
+                            result = { path: [], distance: 0 };
+                            results[algo] = {
+                                path: null,
+                                distance: null,
+                                time: 0
+                            };
                             break;
                         }
                         result = exhaustiveTSP();
@@ -885,37 +981,43 @@ function runAllSteps() {
                             statusDiv.textContent = `⚠️ QHĐ bỏ qua (quá nhiều điểm: ${points.length})`;
                             await new Promise(resolve => setTimeout(resolve, 1000));
                             skipped = true;
+                            result = { path: [], distance: 0 };
+                            results[algo] = {
+                                path: null,
+                                distance: null,
+                                time: 0
+                            };
                             break;
                         }
                         result = dynamicTSP();
                         break;
                 }
                 
-                if (!skipped) {
+                if (!skipped && result && result.path && result.path.length > 0) {
                     const endTime = performance.now();
                     
-                    if (result && result.path && result.path.length > 0) {
-                        results[algo] = {
-                            path: result.path,
-                            distance: result.distance,
-                            time: endTime - startTime
-                        };
-                        
-                        saveResults(algo, result, endTime - startTime);
-                    }
+                    results[algo] = {
+                        path: result.path,
+                        distance: result.distance,
+                        time: endTime - startTime
+                    };
+                    
+                    saveResults(algo, result, endTime - startTime);
                 }
             } catch (error) {
                 console.error(`Lỗi khi chạy ${algo}:`, error);
+                results[algo] = {
+                    path: null,
+                    distance: null,
+                    time: 0
+                };
             }
         }
         
         loadingDiv.remove();
         
-        if (Object.keys(results).length > 0) {
-            showComparisonTable(results);
-        } else {
-            alert('❌ Không có kết quả nào để hiển thị!');
-        }
+        // Luôn hiển thị bảng so sánh, kể cả khi có thuật toán bị bỏ qua
+        showComparisonTable(results);
     }, 100);
 }
 
@@ -1030,5 +1132,106 @@ document.querySelector('.delete-all').addEventListener('click', () => {
         
         // Không xóa currentPath để người dùng vẫn có thể Next tiếp
         alert('✅ Đã xóa toàn bộ đường đi!\n\nBạn có thể click "Next" để vẽ lại từ đầu.');
+    }
+});
+
+// Nút Xóa tất cả điểm - XÓA TOÀN BỘ CÁC ĐIỂM (chỉ giữ điểm 0)
+document.querySelector('.delete-all-points').addEventListener('click', () => {
+    if (points.length <= 1) {
+        alert('⚠️ Chỉ còn điểm xuất phát (Điểm 0), không thể xóa!');
+        return;
+    }
+    
+    const confirmDelete = confirm('🗑️ Bạn có chắc muốn xóa TẤT CẢ các điểm giao hàng?\n\n(Chỉ giữ lại điểm xuất phát - Điểm 0)');
+    
+    if (confirmDelete) {
+        // Reset về chỉ còn điểm 0
+        initializeCenter();
+        
+        // Reset tất cả trạng thái
+        currentPath = [];
+        currentStep = 0;
+        selectedPoint = null;
+        deleteButton.style.display = 'none';
+        
+        // Reset animation
+        if (animationInterval) {
+            clearInterval(animationInterval);
+            animationInterval = null;
+        }
+        isAnimating = false;
+        
+        // Reset progress bar
+        updateProgress(0, 1);
+        
+        // Reset kết quả hiển thị
+        document.querySelector('.distance-value').textContent = 'Chưa có đường đi';
+        document.querySelector('.total-distance-value').textContent = '0.0 km';
+        document.querySelector('.execution-time-value').textContent = '0.0ms';
+        
+        // Reset highlight nút về Tham lam mặc định
+        document.querySelectorAll('.algorithm-button').forEach(btn => {
+            btn.style.background = '#FFF0F5';
+            btn.style.color = '';
+        });
+        
+        document.querySelector('.greedy-button').style.background = 'linear-gradient(135deg, #FFB6C1 0%, #FFC0CB 100%)';
+        document.querySelector('.greedy-button').style.color = 'white';
+        
+        alert('✅ Đã xóa tất cả các điểm giao hàng!\n\nChỉ còn điểm xuất phát (Điểm 0).');
+    }
+});
+
+// Canvas event listeners - SỬA LẠI PHẦN NÀY
+canvasElement.addEventListener('click', (e) => {
+    const rect = canvasElement.getBoundingClientRect();
+    const scaleX = canvasElement.width / rect.width;
+    const scaleY = canvasElement.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+    
+    console.log('Click at:', x, y); // Debug
+    
+    const clickedIndex = getClickedPoint(x, y);
+    
+    console.log('Clicked index:', clickedIndex); // Debug
+    
+    if (clickedIndex !== -1) {
+        // Click vào điểm có sẵn - hiện nút xóa
+        selectedPoint = clickedIndex;
+        
+        const btnX = e.clientX - rect.left;
+        const btnY = e.clientY - rect.top;
+        
+        deleteButton.style.left = (btnX + 15) + 'px';
+        deleteButton.style.top = (btnY - 15) + 'px';
+        deleteButton.style.display = 'block';
+        
+        drawPoints();
+    } else {
+        // Click vào vùng trống - tạo điểm mới
+        selectedPoint = null;
+        deleteButton.style.display = 'none';
+        
+        const newPoint = {
+            x: x,
+            y: y,
+            id: points.length
+        };
+        points.push(newPoint);
+        
+        console.log('New point created:', newPoint); // Debug
+        
+        drawPoints();
+        updateCoordinatesPanel();
+    }
+});
+
+// Click ra ngoài để ẩn nút xóa
+canvas.addEventListener('mouseleave', () => {
+    if (selectedPoint !== null) {
+        selectedPoint = null;
+        deleteButton.style.display = 'none';
+        drawPoints();
     }
 });

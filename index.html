@@ -64,12 +64,13 @@
         .coordinates-panel {
             position: absolute;
             left: 1165px;
-            top: 205px;
+            top: 180px;
             width: 225px;
             height: 328px;
             border-radius: 6px;
             background: linear-gradient(135deg, #FFE4E1 0%, #FFF0F5 100%);
             box-shadow: 0 4px 15px rgba(255, 107, 157, 0.2);
+            overflow: hidden;
         }
 
         .coordinates-label {
@@ -87,7 +88,7 @@
         .random-button {
             position: absolute;
             left: 1271px;
-            top: 540px;
+            top: 520px;
             width: 119px;
             height: 37px;
             display: inline-flex;
@@ -114,7 +115,7 @@
         .quantity-input {
             position: absolute;
             left: 1165px;
-            top: 540px;
+            top: 520px;
             width: 100px;
             height: 45px;
             background: transparent !important;
@@ -130,7 +131,7 @@
         .next-button {
             position: absolute;
             left: 1310px;
-            top: 634px;
+            top: 590px;
             width: 80px;
             height: 36px;
             display: flex;
@@ -242,7 +243,7 @@
             position: absolute;
             left: 33px;
             top: 649px;
-            width: 170px;
+            width: 220px;
             height: 18px;
             color: #FF6B9D;
             font-size: 20px;
@@ -273,8 +274,8 @@
             position: absolute;
             width: 149px;
             height: 21px;
-            left: 785px;
-            top: 670px;
+            left: 665px;
+            top: 690px;
             font-family: 'Inter';
             font-style: normal;
             font-weight: 500;
@@ -287,8 +288,8 @@
             position: absolute;
             width: 149px;
             height: 21px;
-            left: 785px;
-            top: 709px;
+            left: 665px;
+            top: 729px;
             font-family: 'Inter';
             font-style: normal;
             font-weight: 500;
@@ -301,8 +302,8 @@
             position: absolute;
             width: 149px;
             height: 21px;
-            left: 785px;
-            top: 748px;
+            left: 665px;
+            top: 768px;
             font-family: 'Inter';
             font-style: normal;
             font-weight: 500;
@@ -315,8 +316,8 @@
             position: absolute;
             width: 387px;
             height: 21px;
-            left: 908px;
-            top: 670px;
+            left: 808px;
+            top: 690px;
             font-family: 'Inter';
             font-style: normal;
             font-weight: 600;
@@ -332,8 +333,8 @@
             position: absolute;
             width: 387px;
             height: 21px;
-            left: 908px;
-            top: 709px;
+            left: 808px;
+            top: 729px;
             font-family: 'Inter';
             font-style: normal;
             font-weight: 600;
@@ -346,8 +347,8 @@
             position: absolute;
             width: 387px;
             height: 21px;
-            left: 908px;
-            top: 748px;
+            left: 808px;
+            top: 768px;
             font-family: 'Inter';
             font-style: normal;
             font-weight: 600;
@@ -357,6 +358,7 @@
         }
 
         .delete-button {
+            margin-top: -0px;
             position: absolute;
             display: inline-flex;
             padding: 10px;
@@ -394,10 +396,28 @@
             height: 39px;
         }
 
-        .steps-display {
+        .delete-all-points {
             position: absolute;
             left: 1165px;
-            top: 634px;
+            top: 620px;
+            width: 225px;
+            height: 45px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #FF4444 0%, #FF6B6B 100%);
+            border: none;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 68, 68, 0.4);
+            transition: all 0.3s;
+        }
+
+        .steps-display {
+            margin-top: -10px;
+            position: absolute;
+            left: 1165px;
+            top: 614px;
             width: 119px;
             height: 39px;
             background: transparent !important;
@@ -480,19 +500,21 @@
             transform: translateY(-3px);
             box-shadow: 0 6px 20px rgba(255, 182, 193, 0.6);
         }
+
+        #zoom-matrix-btn:hover {
+            background: linear-gradient(135deg, #FF1493, #FF69B4);
+            box-shadow: 0 5px 15px rgba(255, 105, 180, 0.5);
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="page-title">Greedy Algorithms</div>
         
-        <div class="subtitle">Bài toán người giao hàng</div>
-        
         <div class="visualization-area"></div>
         
         <div class="coordinates-panel"></div>
-        
-        <div class="coordinates-label">Tọa độ và thời gian giao hàng</div>
         
         <button class="random-button">Tạo ngẫu nhiên</button>
         
@@ -510,7 +532,26 @@
         
         <button class="algorithm-button dynamic-button">QHD</button>
         
-        <div class="results-title">Kết quả</div>
+        <div class="results-title">Ma trận khoảng cách</div>
+
+        <button id="zoom-matrix-btn" onclick="showFullMatrix()" style="
+            position: absolute;
+            left: 250px;
+            top: 643px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #FF69B4, #FFB6C1);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 3px 10px rgba(255, 105, 180, 0.3);
+            transition: all 0.3s;
+            display: none;
+            z-index: 100;">
+            🔍 Phóng to ma trận
+        </button>
         
         <div class="results-display"></div>
         
@@ -525,8 +566,23 @@
         
         <button class="delete-button delete-single">Xóa</button>
         <button class="delete-button delete-all">Xóa hết</button>
+        <button class="delete-button delete-all-points" style="
+            position: absolute;
+            left: 1165px;
+            top: 750px;
+            width: 225px;
+            height: 45px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #FF4444 0%, #FF6B6B 100%);
+            border: none;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 68, 68, 0.4);
+            transition: all 0.3s;">🗑️ Xóa tất cả điểm</button>
         
-        <div class="steps-display">0/0 bước</div>
+        <div class="steps-display" style="top: 600px">0/0 bước</div>
         
         <div class="progress-bar-bg">
             <div class="progress-fill"></div>
@@ -543,5 +599,6 @@
 </body>
 <script src="script.js"></script>
 </html>
+
 
 

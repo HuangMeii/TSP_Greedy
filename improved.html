@@ -16,6 +16,7 @@
             background: linear-gradient(135deg, #E8F5E9 0%, #FFF9C4 50%, #E1F5FE 100%);
             position: relative;
             min-height: 100vh;
+            font-size: 18px;
         }
 
         .container {
@@ -265,19 +266,17 @@
             <div class="controls-panel">
                 <div class="control-group">
                     <label class="control-label">Số điểm giao hàng:</label>
-                    <input type="number" class="control-input" id="numPoints" value="8" min="3" max="15">
+                    <input type="number" class="control-input" id="numPoints" value="8" min="3" max="15" onchange="updatePopulationLimit()">
                 </div>
 
                 <button class="btn btn-secondary" onclick="generatePoints()">🎲 Tạo điểm ngẫu nhiên</button>
 
                 <div class="control-group">
-                    <label class="control-label">Số điểm khởi đầu (Multi-Start):</label>
-                    <input type="number" class="control-input" id="multiStartCount" value="5" min="3" max="10">
-                </div>
-
-                <div class="control-group">
                     <label class="control-label">Kích thước quần thể:</label>
-                    <input type="number" class="control-input" id="populationSize" value="10" min="5" max="30">
+                    <input type="number" class="control-input" id="populationSize" value="8" min="5" max="8" onchange="validatePopulationSize()">
+                    <small style="color: #F57C00; font-size: 12px; display: block; margin-top: 5px;">
+                        ⚠️ Tối đa bằng số điểm giao hàng
+                    </small>
                 </div>
 
                 <div class="control-group">
@@ -337,6 +336,40 @@
 
     <script src="improved.js"></script>
     <script>
+        // Cập nhật giới hạn kích thước quần thể khi thay đổi số điểm
+        function updatePopulationLimit() {
+            const numPoints = parseInt(document.getElementById('numPoints').value);
+            const populationInput = document.getElementById('populationSize');
+            
+            // Cập nhật max của kích thước quần thể
+            populationInput.max = numPoints;
+            
+            // Nếu giá trị hiện tại vượt quá, điều chỉnh về max
+            if (parseInt(populationInput.value) > numPoints) {
+                populationInput.value = numPoints;
+            }
+        }
+
+        // Kiểm tra kích thước quần thể khi người dùng nhập
+        function validatePopulationSize() {
+            const numPoints = parseInt(document.getElementById('numPoints').value);
+            const populationInput = document.getElementById('populationSize');
+            const populationSize = parseInt(populationInput.value);
+            
+            if (populationSize > numPoints) {
+                alert(`⚠️ Kích thước quần thể không được vượt quá số điểm giao hàng (${numPoints})!`);
+                populationInput.value = numPoints;
+            } else if (populationSize < 5) {
+                alert('⚠️ Kích thước quần thể tối thiểu là 5!');
+                populationInput.value = 5;
+            }
+        }
+
+        // Khởi tạo giới hạn ban đầu
+        window.addEventListener('DOMContentLoaded', () => {
+            updatePopulationLimit();
+        });
+
         // Xử lý chuyển đổi tab
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -356,6 +389,24 @@
                 }
             });
         });
+
+        // Thêm validation trước khi chạy thuật toán
+        const originalRunOptimization = window.runOptimization;
+        window.runOptimization = function() {
+            validatePopulationSize();
+            if (originalRunOptimization) {
+                originalRunOptimization();
+            }
+        };
+
+        // Thêm validation khi tạo điểm ngẫu nhiên
+        const originalGeneratePoints = window.generatePoints;
+        window.generatePoints = function() {
+            if (originalGeneratePoints) {
+                originalGeneratePoints();
+            }
+            updatePopulationLimit();
+        };
     </script>
 </body>
 </html>

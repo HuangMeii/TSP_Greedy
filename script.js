@@ -926,7 +926,7 @@ function displayResults(algorithm, result, time) {
     if (time === 0) {
         timeText = '0ms';
     } else if (time < 0.1) {
-        timeText = `${time.toFixed(8)}ms`;
+        timeText = `${time.toFixed(5)}ms`;
     } else {
         timeText = `${time.toFixed(1)}ms`;
     }
@@ -956,7 +956,7 @@ function saveResults(algorithm, result, time) {
     if (time === 0) {
         timeText = '0ms';
     } else if (time < 0.1) {
-        timeText = `${time.toFixed(8)}ms`;
+        timeText = `${time.toFixed(5)}ms`;
     } else {
         timeText = `${time.toFixed(1)}ms`;
     }

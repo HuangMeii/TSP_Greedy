@@ -120,7 +120,7 @@ function generatePoints() {
 function log(message) {
     const logContainer = document.getElementById('logContainer');
     const time = new Date().toLocaleTimeString();
-    logContainer.innerHTML += `<div>[${time}] ${message}</div>`;
+    logContainer.innerHTML += `<div style="font-size: 16px; line-height: 1.6;">[${time}] ${message}</div>`;
     logContainer.scrollTop = logContainer.scrollHeight;
 }
 
@@ -387,6 +387,28 @@ async function runOptimization() {
     const startTime = performance.now();
     
     try {
+        // ✅ Lấy kích thước quần thể từ input
+        const populationSize = parseInt(document.getElementById('populationSize').value);
+        
+        // ✅ Kiểm tra validation
+        if (populationSize > points.length) {
+            log(`⚠️ Kích thước quần thể (${populationSize}) không được vượt quá số điểm (${points.length})!`);
+            alert(`⚠️ Kích thước quần thể không được vượt quá số điểm giao hàng (${points.length})!`);
+            isRunning = false;
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressText').textContent = 'Sẵn sàng';
+            return;
+        }
+        
+        if (populationSize < 5) {
+            log(`⚠️ Kích thước quần thể tối thiểu là 5!`);
+            alert(`⚠️ Kích thước quần thể tối thiểu là 5!`);
+            isRunning = false;
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressText').textContent = 'Sẵn sàng';
+            return;
+        }
+        
         // ✅ Bước 0: Chạy Greedy thông thường để so sánh
         log(`📊 Chạy thuật toán Tham lam (Greedy) từ depot...`);
         const greedyStartTime = performance.now();
@@ -397,9 +419,9 @@ async function runOptimization() {
         const greedyDistance = greedyResult.distance * 0.01;
         log(`✅ Greedy: ${greedyDistance.toFixed(2)} km (${greedyTime.toFixed(2)} ms)`);
         
-        // ✅ Bước 1: Multi-Start Greedy
-        const maxPopulation = points.length;
-        log(`🔄 Multi-Start Greedy: Tạo ${maxPopulation} cá thể từ ${maxPopulation} điểm xuất phát...`);
+        // ✅ Bước 1: Multi-Start Greedy - CHẠY TẤT CẢ CÁ ĐIỂM
+        const totalStarts = points.length;
+        log(`🔄 Multi-Start Greedy: Tạo ${totalStarts} cá thể từ ${totalStarts} điểm xuất phát...`);
         
         const initialPopulation = [];
         
@@ -443,9 +465,9 @@ async function runOptimization() {
             
             initialPopulation.push(individual);
             
-            const progress = ((startIdx + 1) / maxPopulation * 15).toFixed(0);
+            const progress = ((startIdx + 1) / totalStarts * 15).toFixed(0);
             document.getElementById('progressBar').style.width = progress + '%';
-            document.getElementById('progressText').textContent = `Multi-Start: ${startIdx + 1}/${maxPopulation}`;
+            document.getElementById('progressText').textContent = `Multi-Start: ${startIdx + 1}/${totalStarts}`;
         }
         
         // ✅ Sắp xếp và hiển thị tổng quan
@@ -459,20 +481,20 @@ async function runOptimization() {
         log(`   • Tệ nhất: ${worstMultiStart.toFixed(2)} km (từ điểm ${initialPopulation[initialPopulation.length - 1].startPoint})`);
         
         // ✅ Hiển thị độ dài TẤT CẢ các cá thể
-        log(`📊 Độ dài quãng đường của ${maxPopulation} cá thể:`);
+        log(`📊 Độ dài quãng đường của ${totalStarts} cá thể:`);
         initialPopulation.forEach((ind, idx) => {
             log(`   ${idx + 1}. Điểm ${ind.startPoint}: ${(ind.distance * 0.01).toFixed(2)} km`);
         });
         
-        // ✅ Lấy 50% cá thể tốt nhất
-        const top50Percent = Math.ceil(initialPopulation.length * 0.5);
-        const selectedPopulation = initialPopulation.slice(0, top50Percent);
+        // ✅ LẤY TOP DỰA TRÊN KÍCH THƯỚC QUẦN THỂ
+        const selectedPopulation = initialPopulation.slice(0, populationSize);
         
-        log(`🎯 Chọn ${top50Percent}/${maxPopulation} cá thể tốt nhất (top 50%) để lai ghép`);
+        log(`🎯 Chọn top ${populationSize}/${totalStarts} cá thể tốt nhất để lai ghép`);
+        log(`   Khoảng độ dài: ${(selectedPopulation[0].distance * 0.01).toFixed(2)} km → ${(selectedPopulation[selectedPopulation.length - 1].distance * 0.01).toFixed(2)} km`);
         
         // ✅ Bước 2: Genetic Algorithm + ASA
         const generations = parseInt(document.getElementById('generations').value);
-        log(`🧬 Bắt đầu GA + ASA với ${generations} thế hệ...`);
+        log(`🧬 Bắt đầu GA + ASA với ${populationSize} cá thể, ${generations} thế hệ...`);
         
         let population = selectedPopulation.map(ind => ind.asaParams);
         let globalBest = { 
@@ -506,11 +528,36 @@ async function runOptimization() {
             
             const genBest = results[0].distance * 0.01;
             const genWorst = results[results.length - 1].distance * 0.01;
+            const genAvg = (results.reduce((sum, r) => sum + r.distance, 0) / results.length * 0.01);
             const improvement = globalBest.distance < initialPopulation[0].distance;
             
-            log(`Thế hệ ${gen + 1}: ${genBest.toFixed(2)} km (Tốt) | ${genWorst.toFixed(2)} km (Tệ)${improvement ? ' ⭐ Cải thiện!' : ''}`);
+            log(`\n━━━ Thế hệ ${gen + 1}/${generations} ━━━`);
+            log(`📊 Tổng quan: Tốt nhất: ${genBest.toFixed(2)} km | Trung bình: ${genAvg.toFixed(2)} km | Tệ nhất: ${genWorst.toFixed(2)} km`);
+            log(`📋 Chi tiết ${results.length} cá thể:`);
             
-            // Tạo thế hệ mới
+            // Hiển thị chi tiết từng cá thể
+            results.forEach((result, idx) => {
+                const distKm = (result.distance * 0.01).toFixed(2);
+                const temp0 = result.individual.temp0.toFixed(1);
+                const cooling = result.individual.coolingRate.toFixed(4);
+                const iters = result.individual.iterations;
+                const pathPreview = result.path.slice(0, 5).join('→') + (result.path.length > 5 ? '...' : '');
+                
+                // Thêm icon cho cá thể tốt nhất và tệ nhất
+                let icon = '  ';
+                if (idx === 0) icon = '🥇';
+                else if (idx === 1) icon = '🥈';
+                else if (idx === 2) icon = '🥉';
+                else if (idx === results.length - 1) icon = '📉';
+                
+                log(`    Cá thể ${idx + 1}: ${distKm} km | Đường: ${pathPreview}`);
+            });
+            
+            if (improvement) {
+                log(`✨ Cải thiện so với Multi-Start!`);
+            }
+            
+            // Tạo thế hệ mới - GIỮ NGUYÊN KÍCH THƯỚC QUẦN THỂ
             const newPopulation = [];
             
             newPopulation.push(results[0].individual);
@@ -520,7 +567,7 @@ async function runOptimization() {
             
             const top50Results = results.slice(0, Math.ceil(results.length * 0.5));
             
-            while (newPopulation.length < population.length) {
+            while (newPopulation.length < populationSize) {
                 const parent1 = top50Results[Math.floor(Math.random() * top50Results.length)].individual;
                 const parent2 = top50Results[Math.floor(Math.random() * top50Results.length)].individual;
                 let child = crossover(parent1, parent2);
@@ -550,6 +597,7 @@ async function runOptimization() {
         log(`   • GA-ASA (cải tiến): ${gaAsaDistance.toFixed(2)} km`);
         log(`   • Giảm được: ${reducedDistance.toFixed(2)} km (${Math.abs(improvementPercent).toFixed(1)}%)`);
         log(`⏱️ Thời gian thực thi: ${gaAsaTime.toFixed(0)} ms`);
+        log(`🧬 Kích thước quần thể: ${populationSize}/${totalStarts} cá thể`);
         log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
         
         // Hiển thị kết quả
@@ -573,8 +621,9 @@ async function runOptimization() {
                 reduced: reducedDistance.toFixed(2) + ' km'
             },
             multiStart: {
-                populationSize: initialPopulation.length,
-                selected: top50Percent,
+                totalStarts: totalStarts,
+                populationSize: populationSize,
+                selected: populationSize,
                 bestDistance: bestMultiStart.toFixed(2) + ' km',
                 worstDistance: worstMultiStart.toFixed(2) + ' km'
             },
@@ -646,4 +695,5 @@ function clearAll() {
 
 // Khởi tạo
 initialize();
+
 

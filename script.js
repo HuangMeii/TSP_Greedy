@@ -7,6 +7,8 @@ let selectedPoint = null;
 let currentPath = [];
 let currentStep = 0;
 let animationInterval = null;
+let algorithmResult = null; // ✅ THÊM dòng này
+
 
 // Canvas setup
 const canvas = document.querySelector('.visualization-area');
@@ -201,34 +203,88 @@ async function runAlgorithm(algorithm) {
         drawPoints();
     }
 }
-
 // Next step - Chạy theo số bước người dùng nhập - SỬA LẠI
+// function nextStep() {
+//     // Nếu chưa có thuật toán, tự động chạy Tham lam
+//     if (!currentPath || currentPath.length === 0) {
+//         if (points.length < 2) {
+//             alert('⚠️ Vui lòng tạo ít nhất 2 điểm!');
+//             return;
+//         }
+        
+//         runAlgorithm('greedy');
+//         return;
+//     }
+    
+//     // ✅ SỬA: Kiểm tra đã hoàn thành chưa (phải vẽ đủ n-1 đoạn)
+//     if (currentStep >= currentPath.length - 1) {
+//         alert('✅ Đã hoàn thành tất cả các bước!');
+//         return;
+//     }
+    
+//     if (animationInterval) {
+//         clearInterval(animationInterval);
+//         animationInterval = null;
+//     }
+    
+//     const stepsToRun = parseInt(stepsInput.value) || 1;
+    
+//     for (let i = 0; i < stepsToRun; i++) {
+//         // ✅ SỬA: Kiểm tra trong vòng lặp
+//         if (currentStep >= currentPath.length - 1) {
+//             isAnimating = false;
+//             updateProgress(currentPath.length - 1, currentPath.length - 1);
+//             alert('✅ Đã hoàn thành tất cả các bước!');
+//             break;
+//         }
+        
+//         currentStep++; // ✅ Tăng trước khi vẽ
+//         drawPathStep(currentPath, currentStep);
+//         updateProgress(currentStep, currentPath.length - 1);
+//     }
+// }
+// Next step - Chạy theo số bước người dùng nhập
+// Next step - Chạy theo số bước người dùng nhập
 function nextStep() {
+    console.log('🔍 nextStep called');
+    console.log('currentPath:', currentPath);
+    console.log('currentStep:', currentStep);
+    console.log('points.length:', points.length);
+    
     // Nếu chưa có thuật toán, tự động chạy Tham lam
     if (!currentPath || currentPath.length === 0) {
+        console.log('⚠️ No path, checking points...');
         if (points.length < 2) {
             alert('⚠️ Vui lòng tạo ít nhất 2 điểm!');
             return;
         }
         
-        // Tự động chạy thuật toán Tham lam
+        console.log('✅ Running greedy algorithm...');
         runAlgorithm('greedy');
-        return;
+        return; // ✅ Dừng ở đây, không vẽ gì
     }
     
+    console.log('✅ Path exists, length:', currentPath.length);
+    
+    // Kiểm tra đã hoàn thành chưa
     if (currentStep >= currentPath.length - 1) {
         alert('✅ Đã hoàn thành tất cả các bước!');
         return;
     }
     
+    // Dừng animation nếu đang chạy
     if (animationInterval) {
         clearInterval(animationInterval);
         animationInterval = null;
     }
     
+    // Lấy số bước cần chạy
     const stepsToRun = parseInt(stepsInput.value) || 1;
+    console.log('Steps to run:', stepsToRun);
     
+    // Chạy từng bước
     for (let i = 0; i < stepsToRun; i++) {
+        // Kiểm tra trong vòng lặp
         if (currentStep >= currentPath.length - 1) {
             isAnimating = false;
             updateProgress(currentPath.length - 1, currentPath.length - 1);
@@ -236,11 +292,22 @@ function nextStep() {
             break;
         }
         
+        // ✅ Tăng bước TRƯỚC khi vẽ
         currentStep++;
+        console.log('Drawing step:', currentStep, 'from', currentPath[currentStep - 1], 'to', currentPath[currentStep]);
+        
+        // Vẽ đường đi
         drawPathStep(currentPath, currentStep);
-        updateProgress(currentStep, currentPath.length - 1); // SỬA: Bỏ - 1
+        
+        // Cập nhật progress bar
+        updateProgress(currentStep, currentPath.length - 1);
     }
+    
+    console.log('Final currentStep:', currentStep);
 }
+
+// ...existing code...
+// ...existing code...
 
 // Tính khoảng cách Euclidean
 function distance(p1, p2) {
@@ -786,6 +853,46 @@ function updateCoordinatesPanel() {
 }
 
 // Hiển thị kết quả
+// function displayResults(algorithm, result, time) {
+//     saveResults(algorithm, result, time);
+    
+//     let pathText = '';
+//     if (result.path && result.path.length > 0) {
+//         if (result.path.length > 10) {
+//             const first4 = result.path.slice(0, 4).join(' → ');
+//             const last4 = result.path.slice(-4).join(' → ');
+//             pathText = `${first4} → ... → ${last4}`;
+//         } else {
+//             pathText = result.path.join(' → ');
+//         }
+//     } else {
+//         pathText = 'Chưa có đường đi';
+//     }
+//     document.querySelector('.distance-value').textContent = pathText;
+    
+//     const distanceInKm = result.distance ? (result.distance * 0.01).toFixed(1) : '0.0';
+//     document.querySelector('.total-distance-value').textContent = distanceInKm + ' km';
+    
+//     // ✅ Hiển thị thời gian với độ chính xác cao cho giá trị nhỏ
+//     let timeText;
+//     if (time === 0) {
+//         timeText = '0ms';
+//     } else if (time < 0.1) {
+//         timeText = `${time.toFixed(8)}ms`;
+//     } else {
+//         timeText = `${time.toFixed(1)}ms`;
+//     }
+//     document.querySelector('.execution-time-value').textContent = timeText;
+    
+//     // Hiển thị quãng đường dài nhất (chỉ cho thuật toán vét cạn)
+//     if (algorithm === 'exhaustive' && result.maxDistance) {
+//         const maxDistanceInKm = (result.maxDistance * 0.01).toFixed(1);
+//         document.querySelector('.max-distance').textContent = maxDistanceInKm + ' km';
+//     } else {
+//         document.querySelector('.max-distance').textContent = '0.0 km';
+//     }
+// }
+// Hiển thị kết quả
 function displayResults(algorithm, result, time) {
     saveResults(algorithm, result, time);
     
@@ -801,10 +908,18 @@ function displayResults(algorithm, result, time) {
     } else {
         pathText = 'Chưa có đường đi';
     }
-    document.querySelector('.distance-value').textContent = pathText;
+    
+    // ✅ KIỂM TRA phần tử có tồn tại trước khi gán
+    const distanceValueEl = document.querySelector('.distance-value');
+    if (distanceValueEl) {
+        distanceValueEl.textContent = pathText;
+    }
     
     const distanceInKm = result.distance ? (result.distance * 0.01).toFixed(1) : '0.0';
-    document.querySelector('.total-distance-value').textContent = distanceInKm + ' km';
+    const totalDistanceEl = document.querySelector('.total-distance-value');
+    if (totalDistanceEl) {
+        totalDistanceEl.textContent = distanceInKm + ' km';
+    }
     
     // ✅ Hiển thị thời gian với độ chính xác cao cho giá trị nhỏ
     let timeText;
@@ -815,14 +930,20 @@ function displayResults(algorithm, result, time) {
     } else {
         timeText = `${time.toFixed(1)}ms`;
     }
-    document.querySelector('.execution-time-value').textContent = timeText;
+    const executionTimeEl = document.querySelector('.execution-time-value');
+    if (executionTimeEl) {
+        executionTimeEl.textContent = timeText;
+    }
     
     // Hiển thị quãng đường dài nhất (chỉ cho thuật toán vét cạn)
-    if (algorithm === 'exhaustive' && result.maxDistance) {
-        const maxDistanceInKm = (result.maxDistance * 0.01).toFixed(1);
-        document.querySelector('.max-distance').textContent = maxDistanceInKm + ' km';
-    } else {
-        document.querySelector('.max-distance').textContent = '0.0 km';
+    const maxDistanceEl = document.querySelector('.max-distance');
+    if (maxDistanceEl) {
+        if (algorithm === 'exhaustive' && result.maxDistance) {
+            const maxDistanceInKm = (result.maxDistance * 0.01).toFixed(1);
+            maxDistanceEl.textContent = maxDistanceInKm + ' km';
+        } else {
+            maxDistanceEl.textContent = '0.0 km';
+        }
     }
 }
 
@@ -1050,7 +1171,10 @@ document.querySelector('.dynamic-button').addEventListener('click', () => {
     runAlgorithm('dynamic');
 });
 
-document.querySelector('.next-button').addEventListener('click', nextStep);
+// ✅ SỬA: Event listener cho nút Next
+document.querySelector('.next-button').addEventListener('click', async () => {
+    await nextStep();
+});
 
 document.querySelector('.run-all-button').addEventListener('click', runAllSteps);
 
@@ -1251,4 +1375,9 @@ canvas.addEventListener('mouseleave', () => {
         drawPoints();
     }
 });
+
+
+
+
+
 

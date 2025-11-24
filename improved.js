@@ -387,15 +387,23 @@ async function runOptimization() {
     const startTime = performance.now();
     
     try {
-        // Bước 1: Multi-Start để tạo quần thể ban đầu
-        const multiStartCount = parseInt(document.getElementById('multiStartCount').value);
-        log(`🔄 Bắt đầu GA + ASA với Multi-Start initialization...`);
-        log(`📍 Tạo ${multiStartCount} solution ban đầu bằng Multi-Start Greedy...`);
+        // ✅ Bước 0: Chạy Greedy thông thường để so sánh
+        log(`📊 Chạy thuật toán Tham lam (Greedy) từ depot...`);
+        const greedyStartTime = performance.now();
+        const greedyResult = runGreedy();
+        const greedyEndTime = performance.now();
+        const greedyTime = greedyEndTime - greedyStartTime;
+        
+        const greedyDistance = greedyResult.distance * 0.01;
+        log(`✅ Greedy: ${greedyDistance.toFixed(2)} km (${greedyTime.toFixed(2)} ms)`);
+        
+        // ✅ Bước 1: Multi-Start Greedy
+        const maxPopulation = points.length;
+        log(`🔄 Multi-Start Greedy: Tạo ${maxPopulation} cá thể từ ${maxPopulation} điểm xuất phát...`);
         
         const initialPopulation = [];
         
-        for (let startIdx = 0; startIdx < Math.min(multiStartCount, points.length); startIdx++) {
-            // Greedy từ điểm xuất phát startIdx
+        for (let startIdx = 0; startIdx < points.length; startIdx++) {
             const path = [startIdx];
             const visited = new Set([startIdx]);
             
@@ -418,44 +426,68 @@ async function runOptimization() {
                 visited.add(nearest);
             }
             
-            path.push(startIdx); // Quay về điểm xuất phát
+            path.push(startIdx);
             
-            const asaParams = {
-                temp0: 500 + Math.random() * 500,
-                coolingRate: 0.005 + Math.random() * 0.01,
-                iterations: parseInt(document.getElementById('asaIterations').value)
+            const pathDistance = calculatePathDistance(path);
+            
+            const individual = {
+                startPoint: startIdx,
+                path: path,
+                distance: pathDistance,
+                asaParams: {
+                    temp0: 500 + Math.random() * 500,
+                    coolingRate: 0.005 + Math.random() * 0.01,
+                    iterations: parseInt(document.getElementById('asaIterations').value)
+                }
             };
             
-            initialPopulation.push(asaParams);
+            initialPopulation.push(individual);
             
-            const progress = ((startIdx + 1) / multiStartCount * 20).toFixed(0); // 20% cho Multi-Start
+            const progress = ((startIdx + 1) / maxPopulation * 15).toFixed(0);
             document.getElementById('progressBar').style.width = progress + '%';
-            document.getElementById('progressText').textContent = `Multi-Start: ${startIdx + 1}/${multiStartCount}`;
+            document.getElementById('progressText').textContent = `Multi-Start: ${startIdx + 1}/${maxPopulation}`;
         }
         
-        log(`✅ Đã tạo ${initialPopulation.length} cá thể khởi đầu`);
+        // ✅ Sắp xếp và hiển thị tổng quan
+        initialPopulation.sort((a, b) => a.distance - b.distance);
         
-        // Bước 2: Mở rộng quần thể
-        const populationSize = parseInt(document.getElementById('populationSize').value);
-        log(`👥 Mở rộng quần thể lên ${populationSize} cá thể...`);
+        const bestMultiStart = initialPopulation[0].distance * 0.01;
+        const worstMultiStart = initialPopulation[initialPopulation.length - 1].distance * 0.01;
         
-        while (initialPopulation.length < populationSize) {
-            initialPopulation.push(createASAIndividual());
-        }
+        log(`✅ Multi-Start hoàn thành:`);
+        log(`   • Tốt nhất: ${bestMultiStart.toFixed(2)} km (từ điểm ${initialPopulation[0].startPoint})`);
+        log(`   • Tệ nhất: ${worstMultiStart.toFixed(2)} km (từ điểm ${initialPopulation[initialPopulation.length - 1].startPoint})`);
         
-        // Bước 3: Chạy GA + ASA
+        // ✅ Hiển thị độ dài TẤT CẢ các cá thể
+        log(`📊 Độ dài quãng đường của ${maxPopulation} cá thể:`);
+        initialPopulation.forEach((ind, idx) => {
+            log(`   ${idx + 1}. Điểm ${ind.startPoint}: ${(ind.distance * 0.01).toFixed(2)} km`);
+        });
+        
+        // ✅ Lấy 50% cá thể tốt nhất
+        const top50Percent = Math.ceil(initialPopulation.length * 0.5);
+        const selectedPopulation = initialPopulation.slice(0, top50Percent);
+        
+        log(`🎯 Chọn ${top50Percent}/${maxPopulation} cá thể tốt nhất (top 50%) để lai ghép`);
+        
+        // ✅ Bước 2: Genetic Algorithm + ASA
         const generations = parseInt(document.getElementById('generations').value);
-        log(`🧬 Chạy GA + ASA với ${generations} thế hệ...`);
+        log(`🧬 Bắt đầu GA + ASA với ${generations} thế hệ...`);
         
-        let population = initialPopulation;
-        let globalBest = { path: null, distance: Infinity, params: null };
+        let population = selectedPopulation.map(ind => ind.asaParams);
+        let globalBest = { 
+            path: initialPopulation[0].path, 
+            distance: initialPopulation[0].distance, 
+            params: initialPopulation[0].asaParams 
+        };
+        
+        bestPath = globalBest.path;
+        draw();
         
         for (let gen = 0; gen < generations; gen++) {
-            const progress = (20 + (gen + 1) / generations * 80).toFixed(0); // 20-100%
+            const progress = (15 + (gen + 1) / generations * 85).toFixed(0);
             document.getElementById('progressBar').style.width = progress + '%';
             document.getElementById('progressText').textContent = `Thế hệ ${gen + 1}/${generations} (${progress}%)`;
-            
-            log(`--- Thế hệ ${gen + 1} ---`);
             
             const results = [];
             for (let i = 0; i < population.length; i++) {
@@ -466,27 +498,31 @@ async function runOptimization() {
                     globalBest = { ...result, params: population[i] };
                     bestPath = result.path;
                     draw();
-                    log(`✨ Tìm thấy solution tốt hơn: ${(result.distance * 0.01).toFixed(2)} km`);
                 }
             }
             
             // Sắp xếp theo fitness
             results.sort((a, b) => a.distance - b.distance);
-            log(`Tốt nhất thế hệ: ${(results[0].distance * 0.01).toFixed(2)} km`);
+            
+            const genBest = results[0].distance * 0.01;
+            const genWorst = results[results.length - 1].distance * 0.01;
+            const improvement = globalBest.distance < initialPopulation[0].distance;
+            
+            log(`Thế hệ ${gen + 1}: ${genBest.toFixed(2)} km (Tốt) | ${genWorst.toFixed(2)} km (Tệ)${improvement ? ' ⭐ Cải thiện!' : ''}`);
             
             // Tạo thế hệ mới
             const newPopulation = [];
             
-            // Elitism: Giữ lại 2 cá thể tốt nhất
             newPopulation.push(results[0].individual);
             if (results.length > 1) {
                 newPopulation.push(results[1].individual);
             }
             
-            // Lai ghép và đột biến
-            while (newPopulation.length < populationSize) {
-                const parent1 = results[Math.floor(Math.random() * Math.min(5, results.length))].individual;
-                const parent2 = results[Math.floor(Math.random() * Math.min(5, results.length))].individual;
+            const top50Results = results.slice(0, Math.ceil(results.length * 0.5));
+            
+            while (newPopulation.length < population.length) {
+                const parent1 = top50Results[Math.floor(Math.random() * top50Results.length)].individual;
+                const parent2 = top50Results[Math.floor(Math.random() * top50Results.length)].individual;
                 let child = crossover(parent1, parent2);
                 child = mutate(child);
                 newPopulation.push(child);
@@ -499,15 +535,53 @@ async function runOptimization() {
         
         const endTime = performance.now();
         const execTime = endTime - startTime;
+        const gaAsaTime = execTime - greedyTime;
         
-        log(`✅ Hoàn thành! Quãng đường tốt nhất: ${(globalBest.distance * 0.01).toFixed(2)} km`);
-        log(`⏱️ Thời gian thực thi: ${execTime.toFixed(0)} ms`);
+        // ✅ Tính toán kết quả cuối cùng
+        const gaAsaDistance = globalBest.distance * 0.01;
+        const improvementPercent = ((greedyDistance - gaAsaDistance) / greedyDistance * 100);
+        const reducedDistance = greedyDistance - gaAsaDistance;
+        
+        log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        log(`✅ HOÀN THÀNH!`);
+        log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        log(`📊 Kết quả cuối cùng:`);
+        log(`   • Greedy thông thường: ${greedyDistance.toFixed(2)} km`);
+        log(`   • GA-ASA (cải tiến): ${gaAsaDistance.toFixed(2)} km`);
+        log(`   • Giảm được: ${reducedDistance.toFixed(2)} km (${Math.abs(improvementPercent).toFixed(1)}%)`);
+        log(`⏱️ Thời gian thực thi: ${gaAsaTime.toFixed(0)} ms`);
+        log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
         
         // Hiển thị kết quả
         document.getElementById('algoName').textContent = 'GA-ASA';
-        document.getElementById('bestDistance').textContent = (globalBest.distance * 0.01).toFixed(2) + ' km';
-        document.getElementById('execTime').textContent = execTime.toFixed(0) + ' ms';
+        document.getElementById('bestDistance').textContent = gaAsaDistance.toFixed(2) + ' km';
+        document.getElementById('execTime').textContent = gaAsaTime.toFixed(0) + ' ms';
         document.getElementById('iterations').textContent = generations;
+        
+        // ✅ Lưu kết quả
+        const results = {
+            greedy: {
+                distance: greedyDistance.toFixed(2) + ' km',
+                time: greedyTime.toFixed(2) + ' ms',
+                path: greedyResult.path.join(' → ')
+            },
+            gaAsa: {
+                distance: gaAsaDistance.toFixed(2) + ' km',
+                time: gaAsaTime.toFixed(0) + ' ms',
+                path: globalBest.path.join(' → '),
+                improvement: improvementPercent.toFixed(1) + '%',
+                reduced: reducedDistance.toFixed(2) + ' km'
+            },
+            multiStart: {
+                populationSize: initialPopulation.length,
+                selected: top50Percent,
+                bestDistance: bestMultiStart.toFixed(2) + ' km',
+                worstDistance: worstMultiStart.toFixed(2) + ' km'
+            },
+            pointsCount: points.length
+        };
+        
+        localStorage.setItem('improved-results', JSON.stringify(results));
         
     } catch (error) {
         log('❌ Lỗi: ' + error.message);
@@ -517,6 +591,41 @@ async function runOptimization() {
         document.getElementById('progressBar').style.width = '100%';
         document.getElementById('progressText').textContent = 'Hoàn thành!';
     }
+}
+
+// ✅ Hàm Greedy thông thường từ depot - HOÀN CHỈNH
+function runGreedy() {
+    if (points.length < 2) return { path: [], distance: Infinity };
+    
+    // Greedy từ điểm 0 (depot)
+    const path = [0];
+    const visited = new Set([0]);
+    
+    while (path.length < points.length) {
+        const current = path[path.length - 1];
+        let nearest = -1;
+        let minDist = Infinity;
+        
+        for (let i = 0; i < points.length; i++) {
+            if (!visited.has(i)) {
+                const dist = distance(points[current], points[i]);
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearest = i;
+                }
+            }
+        }
+        
+        if (nearest !== -1) {
+            path.push(nearest);
+            visited.add(nearest);
+        }
+    }
+    
+    path.push(0); // Quay về depot
+    
+    const totalDist = calculatePathDistance(path);
+    return { path, distance: totalDist };
 }
 
 // Xóa tất cả

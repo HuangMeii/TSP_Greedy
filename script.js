@@ -785,41 +785,7 @@ function updateCoordinatesPanel() {
     displayDistanceMatrix();
 }
 
-// Lưu kết quả vào localStorage
-function saveResults(algorithm, result, time) {
-    const results = JSON.parse(localStorage.getItem('tsp-results') || '{}');
-    
-    results[algorithm] = {
-        path: result.path ? result.path.join(' → ') : '-',
-        distance: result.distance ? (result.distance * 0.01).toFixed(1) + ' km' : '-',
-        time: time ? time.toFixed(1) + 'ms' : '-',
-        timeMs: time || 0,
-        points: points.length,
-        efficiency: algorithm === 'greedy' ? 'Nhanh' : (algorithm === 'dynamic' ? 'Cân bằng' : 'Chậm'),
-        maxDistance: result.maxDistance ? (result.maxDistance * 0.01).toFixed(1) + ' km' : '0.0 km' // Thêm dòng này
-    };
-    
-    localStorage.setItem('tsp-results', JSON.stringify(results));
-}
-
 // Hiển thị kết quả
-// function displayResults(algorithm, result, time) {
-//     saveResults(algorithm, result, time);
-    
-//     let pathText = '';
-//     if (result.path && result.path.length > 0) {
-//         pathText = result.path.join(' → ');
-//     } else {
-//         pathText = 'Chưa có đường đi';
-//     }
-//     document.querySelector('.distance-value').textContent = pathText;
-    
-//     const distanceInKm = result.distance ? (result.distance * 0.01).toFixed(1) : '0.0';
-//     document.querySelector('.total-distance-value').textContent = distanceInKm + ' km';
-    
-//     document.querySelector('.execution-time-value').textContent = 
-//         time ? `${time.toFixed(1)}ms` : '0.0ms';
-// }
 function displayResults(algorithm, result, time) {
     saveResults(algorithm, result, time);
     
@@ -840,8 +806,16 @@ function displayResults(algorithm, result, time) {
     const distanceInKm = result.distance ? (result.distance * 0.01).toFixed(1) : '0.0';
     document.querySelector('.total-distance-value').textContent = distanceInKm + ' km';
     
-    document.querySelector('.execution-time-value').textContent = 
-        time ? `${time.toFixed(1)}ms` : '0.0ms';
+    // ✅ Hiển thị thời gian với độ chính xác cao cho giá trị nhỏ
+    let timeText;
+    if (time === 0) {
+        timeText = '0ms';
+    } else if (time < 0.1) {
+        timeText = `${time.toFixed(8)}ms`;
+    } else {
+        timeText = `${time.toFixed(1)}ms`;
+    }
+    document.querySelector('.execution-time-value').textContent = timeText;
     
     // Hiển thị quãng đường dài nhất (chỉ cho thuật toán vét cạn)
     if (algorithm === 'exhaustive' && result.maxDistance) {
@@ -850,6 +824,33 @@ function displayResults(algorithm, result, time) {
     } else {
         document.querySelector('.max-distance').textContent = '0.0 km';
     }
+}
+
+// Lưu kết quả vào localStorage - ✅ CẬP NHẬT
+function saveResults(algorithm, result, time) {
+    const results = JSON.parse(localStorage.getItem('tsp-results') || '{}');
+    
+    // ✅ Định dạng thời gian giống displayResults
+    let timeText;
+    if (time === 0) {
+        timeText = '0ms';
+    } else if (time < 0.1) {
+        timeText = `${time.toFixed(8)}ms`;
+    } else {
+        timeText = `${time.toFixed(1)}ms`;
+    }
+    
+    results[algorithm] = {
+        path: result.path ? result.path.join(' → ') : '-',
+        distance: result.distance ? (result.distance * 0.01).toFixed(1) + ' km' : '-',
+        time: timeText,
+        timeMs: time || 0,
+        points: points.length,
+        efficiency: algorithm === 'greedy' ? 'Nhanh' : (algorithm === 'dynamic' ? 'Cân bằng' : 'Chậm'),
+        maxDistance: result.maxDistance ? (result.maxDistance * 0.01).toFixed(1) + ' km' : '0.0 km'
+    };
+    
+    localStorage.setItem('tsp-results', JSON.stringify(results));
 }
 
 // Animation từng bước
@@ -937,10 +938,8 @@ function runAllSteps() {
         animationInterval = null;
     }
     
-    // Reset animation
     resetAnimation();
     
-    // Hiển thị loading
     const loadingDiv = document.createElement('div');
     loadingDiv.style.cssText = `
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -959,6 +958,10 @@ function runAllSteps() {
     setTimeout(async () => {
         const algorithms = ['greedy', 'dynamic', 'exhaustive'];
         const results = {};
+        let maxDistanceFound = 0;
+        
+        // ✅ Xóa toàn bộ dữ liệu cũ trước khi chạy
+        localStorage.removeItem('tsp-results');
         
         for (const algo of algorithms) {
             const algoName = algo === 'greedy' ? 'Tham lam' : algo === 'dynamic' ? 'Quy hoạch động' : 'Vét cạn';
@@ -969,7 +972,6 @@ function runAllSteps() {
             let result;
             let skipped = false;
             
-            // ✅ Di chuyển xuống đây
             const startTime = performance.now(); 
             
             try {
@@ -982,19 +984,20 @@ function runAllSteps() {
                             statusDiv.textContent = `⚠️ Vét cạn bỏ qua (quá nhiều điểm: ${points.length})`;
                             await new Promise(resolve => setTimeout(resolve, 1000));
                             skipped = true;
-                            result = { path: [], distance: 0, maxDistance: 0 };
-                            results[algo] = { path: null, distance: null, time: 0 };
+                            // ✅ KHÔNG lưu kết quả vào results khi bỏ qua
                             break;
                         }
                         result = exhaustiveTSP();
+                        if (result.maxDistance) {
+                            maxDistanceFound = result.maxDistance;
+                        }
                         break;
                     case 'dynamic':
                         if (points.length > 15) {
                             statusDiv.textContent = `⚠️ QHĐ bỏ qua (quá nhiều điểm: ${points.length})`;
                             await new Promise(resolve => setTimeout(resolve, 1000));
                             skipped = true;
-                            result = { path: [], distance: 0 };
-                            results[algo] = { path: null, distance: null, time: 0 };
+                            // ✅ KHÔNG lưu kết quả vào results khi bỏ qua
                             break;
                         }
                         result = dynamicTSP();
@@ -1003,25 +1006,33 @@ function runAllSteps() {
                 
                 const endTime = performance.now();
                 
+                // ✅ Chỉ lưu kết quả nếu KHÔNG bị bỏ qua
                 if (!skipped && result && result.path && result.path.length > 0) {
                     results[algo] = {
                         path: result.path,
                         distance: result.distance,
                         time: endTime - startTime,
-                        maxDistance: result.maxDistance || 0 // ✅ Thêm dòng này
+                        maxDistance: result.maxDistance || 0
                     };
                     
                     saveResults(algo, result, endTime - startTime);
                 }
             } catch (error) {
                 console.error(`Lỗi khi chạy ${algo}:`, error);
-                results[algo] = { path: null, distance: null, time: 0 };
             }
         }
         
-        loadingDiv.remove();
+        // ✅ Lưu số lượng điểm vào localStorage
+        const savedResults = JSON.parse(localStorage.getItem('tsp-results') || '{}');
+        savedResults.pointsCount = points.length;
+        localStorage.setItem('tsp-results', JSON.stringify(savedResults));
         
-        // Luôn hiển thị bảng so sánh, kể cả khi có thuật toán bị bỏ qua
+        if (maxDistanceFound > 0) {
+            const maxDistanceInKm = (maxDistanceFound * 0.01).toFixed(1);
+            document.querySelector('.max-distance').textContent = maxDistanceInKm + ' km';
+        }
+        
+        loadingDiv.remove();
         showComparisonTable(results);
     }, 100);
 }
@@ -1240,3 +1251,4 @@ canvas.addEventListener('mouseleave', () => {
         drawPoints();
     }
 });
+

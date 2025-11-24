@@ -367,102 +367,156 @@ async function runHybrid() {
 }
 
 // ==========================================
-// CHẠY TỐI ƯU HÓA
+// CHẠY TỐI ƯU HÓA - GA+ASA VỚI MULTI-START
 // ==========================================
 
 async function runOptimization() {
-    if (points.length < 3) {
-        alert('Cần ít nhất 3 điểm để chạy thuật toán!');
+    if (points.length < 2) {
+        log('⚠️ Vui lòng tạo ít nhất 2 điểm!');
         return;
     }
     
     if (isRunning) {
-        alert('Thuật toán đang chạy!');
+        log('⚠️ Đang chạy thuật toán, vui lòng đợi!');
         return;
     }
     
     isRunning = true;
     document.getElementById('logContainer').innerHTML = '';
-    document.getElementById('progressBar').style.width = '0%';
     
     const startTime = performance.now();
-    let result;
     
     try {
-        if (currentAlgorithm === 'ga-asa') {
-            result = await runGAASA();
-        } else if (currentAlgorithm === 'multi-start') {
-            result = await runMultiStart();
-        } else {
-            result = await runHybrid();
+        // Bước 1: Multi-Start để tạo quần thể ban đầu
+        const multiStartCount = parseInt(document.getElementById('multiStartCount').value);
+        log(`🔄 Bắt đầu GA + ASA với Multi-Start initialization...`);
+        log(`📍 Tạo ${multiStartCount} solution ban đầu bằng Multi-Start Greedy...`);
+        
+        const initialPopulation = [];
+        
+        for (let startIdx = 0; startIdx < Math.min(multiStartCount, points.length); startIdx++) {
+            // Greedy từ điểm xuất phát startIdx
+            const path = [startIdx];
+            const visited = new Set([startIdx]);
+            
+            while (path.length < points.length) {
+                const current = path[path.length - 1];
+                let nearest = -1;
+                let minDist = Infinity;
+                
+                for (let i = 0; i < points.length; i++) {
+                    if (!visited.has(i)) {
+                        const dist = distance(points[current], points[i]);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            nearest = i;
+                        }
+                    }
+                }
+                
+                path.push(nearest);
+                visited.add(nearest);
+            }
+            
+            path.push(startIdx); // Quay về điểm xuất phát
+            
+            const asaParams = {
+                temp0: 500 + Math.random() * 500,
+                coolingRate: 0.005 + Math.random() * 0.01,
+                iterations: parseInt(document.getElementById('asaIterations').value)
+            };
+            
+            initialPopulation.push(asaParams);
+            
+            const progress = ((startIdx + 1) / multiStartCount * 20).toFixed(0); // 20% cho Multi-Start
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressText').textContent = `Multi-Start: ${startIdx + 1}/${multiStartCount}`;
+        }
+        
+        log(`✅ Đã tạo ${initialPopulation.length} cá thể khởi đầu`);
+        
+        // Bước 2: Mở rộng quần thể
+        const populationSize = parseInt(document.getElementById('populationSize').value);
+        log(`👥 Mở rộng quần thể lên ${populationSize} cá thể...`);
+        
+        while (initialPopulation.length < populationSize) {
+            initialPopulation.push(createASAIndividual());
+        }
+        
+        // Bước 3: Chạy GA + ASA
+        const generations = parseInt(document.getElementById('generations').value);
+        log(`🧬 Chạy GA + ASA với ${generations} thế hệ...`);
+        
+        let population = initialPopulation;
+        let globalBest = { path: null, distance: Infinity, params: null };
+        
+        for (let gen = 0; gen < generations; gen++) {
+            const progress = (20 + (gen + 1) / generations * 80).toFixed(0); // 20-100%
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressText').textContent = `Thế hệ ${gen + 1}/${generations} (${progress}%)`;
+            
+            log(`--- Thế hệ ${gen + 1} ---`);
+            
+            const results = [];
+            for (let i = 0; i < population.length; i++) {
+                const result = runASA(population[i]);
+                results.push({ individual: population[i], ...result });
+                
+                if (result.distance < globalBest.distance) {
+                    globalBest = { ...result, params: population[i] };
+                    bestPath = result.path;
+                    draw();
+                    log(`✨ Tìm thấy solution tốt hơn: ${(result.distance * 0.01).toFixed(2)} km`);
+                }
+            }
+            
+            // Sắp xếp theo fitness
+            results.sort((a, b) => a.distance - b.distance);
+            log(`Tốt nhất thế hệ: ${(results[0].distance * 0.01).toFixed(2)} km`);
+            
+            // Tạo thế hệ mới
+            const newPopulation = [];
+            
+            // Elitism: Giữ lại 2 cá thể tốt nhất
+            newPopulation.push(results[0].individual);
+            if (results.length > 1) {
+                newPopulation.push(results[1].individual);
+            }
+            
+            // Lai ghép và đột biến
+            while (newPopulation.length < populationSize) {
+                const parent1 = results[Math.floor(Math.random() * Math.min(5, results.length))].individual;
+                const parent2 = results[Math.floor(Math.random() * Math.min(5, results.length))].individual;
+                let child = crossover(parent1, parent2);
+                child = mutate(child);
+                newPopulation.push(child);
+            }
+            
+            population = newPopulation;
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
         
         const endTime = performance.now();
         const execTime = endTime - startTime;
         
-        // Hiển thị kết quả
-        document.getElementById('algoName').textContent = currentAlgorithm.toUpperCase();
-        document.getElementById('bestDistance').textContent = (result.distance * 0.01).toFixed(2) + ' km';
-        document.getElementById('execTime').textContent = execTime.toFixed(0) + ' ms';
-        document.getElementById('iterations').textContent = currentAlgorithm === 'ga-asa' ? 
-            document.getElementById('generations').value : points.length;
+        log(`✅ Hoàn thành! Quãng đường tốt nhất: ${(globalBest.distance * 0.01).toFixed(2)} km`);
+        log(`⏱️ Thời gian thực thi: ${execTime.toFixed(0)} ms`);
         
-        // Lưu vào localStorage để so sánh
-        saveComparison(currentAlgorithm, result.distance * 0.01, execTime);
+        // Hiển thị kết quả
+        document.getElementById('algoName').textContent = 'GA-ASA';
+        document.getElementById('bestDistance').textContent = (globalBest.distance * 0.01).toFixed(2) + ' km';
+        document.getElementById('execTime').textContent = execTime.toFixed(0) + ' ms';
+        document.getElementById('iterations').textContent = generations;
         
     } catch (error) {
         log('❌ Lỗi: ' + error.message);
         console.error(error);
+    } finally {
+        isRunning = false;
+        document.getElementById('progressBar').style.width = '100%';
+        document.getElementById('progressText').textContent = 'Hoàn thành!';
     }
-    
-    isRunning = false;
-    document.getElementById('progressBar').style.width = '100%';
-    document.getElementById('progressText').textContent = 'Hoàn thành!';
-}
-
-// Lưu kết quả so sánh
-function saveComparison(algo, distance, time) {
-    const comparisons = JSON.parse(localStorage.getItem('improved-comparisons') || '{}');
-    comparisons[algo] = { distance, time };
-    localStorage.setItem('improved-comparisons', JSON.stringify(comparisons));
-    updateComparisonTable();
-}
-
-// Cập nhật bảng so sánh
-function updateComparisonTable() {
-    const comparisons = JSON.parse(localStorage.getItem('improved-comparisons') || '{}');
-    const tbody = document.getElementById('comparisonBody');
-    
-    if (Object.keys(comparisons).length === 0) return;
-    
-    // Lấy kết quả greedy từ trang chính
-    const basicResults = JSON.parse(localStorage.getItem('tsp-results') || '{}');
-    const greedyDist = basicResults.greedy ? parseFloat(basicResults.greedy.distance) : null;
-    
-    tbody.innerHTML = '';
-    
-    let minDist = Infinity;
-    Object.values(comparisons).forEach(c => {
-        if (c.distance < minDist) minDist = c.distance;
-    });
-    
-    Object.entries(comparisons).forEach(([algo, data]) => {
-        const row = tbody.insertRow();
-        const isBest = data.distance === minDist;
-        
-        if (isBest) row.classList.add('best-result');
-        
-        row.insertCell(0).textContent = algo.toUpperCase();
-        row.insertCell(1).textContent = data.distance.toFixed(2) + ' km';
-        row.insertCell(2).textContent = data.time.toFixed(0) + ' ms';
-        
-        if (greedyDist) {
-            const improvement = ((greedyDist - data.distance) / greedyDist * 100).toFixed(1);
-            row.insertCell(3).textContent = improvement + '%';
-        } else {
-            row.insertCell(3).textContent = '-';
-        }
-    });
 }
 
 // Xóa tất cả
@@ -470,20 +524,16 @@ function clearAll() {
     points = [{ x: 550, y: 250, id: 0 }];
     bestPath = null;
     draw();
-    document.getElementById('logContainer').innerHTML = 'Đã xóa tất cả';
+    document.getElementById('logContainer').innerHTML = 'Đã xóa tất cả điểm';
     document.getElementById('progressBar').style.width = '0%';
     document.getElementById('progressText').textContent = 'Sẵn sàng';
+    
+    // Reset kết quả
+    document.getElementById('algoName').textContent = '-';
+    document.getElementById('bestDistance').textContent = '-';
+    document.getElementById('execTime').textContent = '-';
+    document.getElementById('iterations').textContent = '-';
 }
-
-// Event listeners cho tabs
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentAlgorithm = btn.dataset.algo;
-    });
-});
 
 // Khởi tạo
 initialize();
-updateComparisonTable();

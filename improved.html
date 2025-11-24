@@ -133,32 +133,6 @@
             box-shadow: 0 4px 15px rgba(239, 83, 80, 0.4);
         }
 
-        .results-section {
-            margin-top: 20px;
-            background: white;
-            border-radius: 8px;
-            padding: 15px;
-        }
-
-        .result-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #E0E0E0;
-        }
-
-        .result-label {
-            color: #558B2F;
-            font-weight: 600;
-            font-size: 13px;
-        }
-
-        .result-value {
-            color: #2E7D32;
-            font-weight: 700;
-            font-size: 13px;
-        }
-
         .algorithm-tabs {
             display: flex;
             gap: 10px;
@@ -183,88 +157,99 @@
             border-color: #2E7D32;
         }
 
-        .progress-container {
-            margin-top: 20px;
+        /* ✅ Phần kết quả được di chuyển xuống dưới */
+        .results-container {
+            max-width: 1600px;
+            margin: 30px auto 0;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        .results-section {
             background: white;
-            border-radius: 8px;
-            padding: 15px;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(46, 125, 50, 0.15);
+        }
+
+        .results-section h3 {
+            color: #2E7D32;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #E0E0E0;
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            color: #558B2F;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .result-value {
+            color: #2E7D32;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .progress-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(46, 125, 50, 0.15);
+        }
+
+        .progress-container h3 {
+            color: #2E7D32;
+            margin-bottom: 15px;
+            font-size: 18px;
         }
 
         .progress-bar {
             width: 100%;
-            height: 20px;
+            height: 25px;
             background: #E0E0E0;
-            border-radius: 10px;
+            border-radius: 12px;
             overflow: hidden;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #66BB6A 0%, #81C784 100%);
             transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
         }
 
         .log-container {
-            max-height: 200px;
+            max-height: 300px;
             overflow-y: auto;
             background: #FAFAFA;
-            border-radius: 6px;
-            padding: 10px;
+            border-radius: 8px;
+            padding: 15px;
             font-family: 'Courier New', monospace;
             font-size: 12px;
             color: #424242;
+            line-height: 1.6;
         }
 
-        .comparison-table {
-            width: 100%;
-            background: white;
-            border-radius: 8px;
-            margin-top: 20px;
-            overflow: hidden;
-        }
-
-        .comparison-table table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .comparison-table th {
-            background: linear-gradient(135deg, #66BB6A 0%, #81C784 100%);
-            color: white;
-            padding: 12px;
-            font-size: 13px;
-        }
-
-        .comparison-table td {
-            padding: 10px;
-            border-bottom: 1px solid #E0E0E0;
-            font-size: 12px;
-            text-align: center;
-        }
-
-        .best-result {
-            background: #E8F5E9;
-            font-weight: 700;
-            color: #2E7D32;
-        }
-
-        .back-link {
-            display: inline-block;
-            margin-top: 20px;
-            padding: 12px 24px;
-            background: linear-gradient(135deg, #42A5F5 0%, #64B5F6 100%);
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 700;
-            transition: all 0.3s;
-        }
-
-        .back-link:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(66, 165, 245, 0.4);
-        }
+        /* ✅ Xóa CSS cho bảng so sánh */
+        /* .comparison-section { ... } */
     </style>
 </head>
 <body>
@@ -285,86 +270,92 @@
 
                 <button class="btn btn-secondary" onclick="generatePoints()">🎲 Tạo điểm ngẫu nhiên</button>
 
-                <div class="algorithm-tabs">
-                    <button class="tab-btn active" data-algo="ga-asa">GA+ASA</button>
-                    <button class="tab-btn" data-algo="multi-start">Multi-Start</button>
-                    <button class="tab-btn" data-algo="hybrid">Hybrid</button>
+                <div class="control-group">
+                    <label class="control-label">Số điểm khởi đầu (Multi-Start):</label>
+                    <input type="number" class="control-input" id="multiStartCount" value="5" min="3" max="10">
                 </div>
 
-                <div id="ga-asa-controls">
-                    <div class="control-group">
-                        <label class="control-label">Kích thước quần thể:</label>
-                        <input type="number" class="control-input" id="populationSize" value="10" min="5" max="30">
-                    </div>
+                <div class="control-group">
+                    <label class="control-label">Kích thước quần thể:</label>
+                    <input type="number" class="control-input" id="populationSize" value="10" min="5" max="30">
+                </div>
 
-                    <div class="control-group">
-                        <label class="control-label">Số thế hệ:</label>
-                        <input type="number" class="control-input" id="generations" value="5" min="2" max="20">
-                    </div>
+                <div class="control-group">
+                    <label class="control-label">Số thế hệ:</label>
+                    <input type="number" class="control-input" id="generations" value="5" min="2" max="20">
+                </div>
 
-                    <div class="control-group">
-                        <label class="control-label">Số vòng lặp ASA:</label>
-                        <input type="number" class="control-input" id="asaIterations" value="1000" min="500" max="5000">
-                    </div>
+                <div class="control-group">
+                    <label class="control-label">Số vòng lặp ASA:</label>
+                    <input type="number" class="control-input" id="asaIterations" value="1000" min="500" max="5000">
                 </div>
 
                 <button class="btn btn-primary" onclick="runOptimization()">▶️ Chạy tối ưu hóa</button>
                 <button class="btn btn-danger" onclick="clearAll()">🗑️ Xóa tất cả</button>
+            </div>
+        </div>
 
-                <div class="results-section">
-                    <h3 style="color: #2E7D32; margin-bottom: 10px;">📊 Kết quả</h3>
-                    <div class="result-row">
-                        <span class="result-label">Thuật toán:</span>
-                        <span class="result-value" id="algoName">-</span>
-                    </div>
-                    <div class="result-row">
-                        <span class="result-label">Quãng đường tốt nhất:</span>
-                        <span class="result-value" id="bestDistance">-</span>
-                    </div>
-                    <div class="result-row">
-                        <span class="result-label">Thời gian:</span>
-                        <span class="result-value" id="execTime">-</span>
-                    </div>
-                    <div class="result-row">
-                        <span class="result-label">Thế hệ/Lần thử:</span>
-                        <span class="result-value" id="iterations">-</span>
-                    </div>
+        <!-- ✅ Phần kết quả - CHỈ CÒN 2 BẢNG -->
+        <div class="results-container">
+            <div class="results-section">
+                <h3>📊 Kết quả</h3>
+                <div class="result-row">
+                    <span class="result-label">Thuật toán:</span>
+                    <span class="result-value" id="algoName">-</span>
                 </div>
-
-                <div class="progress-container">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressBar" style="width: 0%"></div>
-                    </div>
-                    <div id="progressText" style="text-align: center; color: #558B2F; font-weight: 600;">Sẵn sàng</div>
+                <div class="result-row">
+                    <span class="result-label">Quãng đường tốt nhất:</span>
+                    <span class="result-value" id="bestDistance">-</span>
                 </div>
+                <div class="result-row">
+                    <span class="result-label">Thời gian:</span>
+                    <span class="result-value" id="execTime">-</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Thế hệ/Lần thử:</span>
+                    <span class="result-value" id="iterations">-</span>
+                </div>
+            </div>
 
+            <div class="progress-container">
+                <h3>⏳ Tiến trình</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+                </div>
+                <div id="progressText" style="text-align: center; color: #558B2F; font-weight: 600; margin-bottom: 15px;">Sẵn sàng</div>
+                
                 <div class="log-container" id="logContainer">
                     Chờ chạy thuật toán...
                 </div>
             </div>
         </div>
 
-        <div class="comparison-table">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Thuật toán</th>
-                        <th>Quãng đường (km)</th>
-                        <th>Thời gian (ms)</th>
-                        <th>Cải thiện so với Greedy</th>
-                    </tr>
-                </thead>
-                <tbody id="comparisonBody">
-                    <tr>
-                        <td colspan="4" style="text-align: center; color: #9E9E9E;">Chưa có dữ liệu so sánh</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="center-link">
+            <a href="index.html" class="back-link">← Quay lại trang chính</a>
         </div>
-
-        <a href="index.html" class="back-link">← Quay lại trang chính</a>
     </div>
 
     <script src="improved.js"></script>
+    <script>
+        // Xử lý chuyển đổi tab
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Xóa active khỏi tất cả các nút
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                // Thêm active vào nút được click
+                btn.classList.add('active');
+
+                // Hiển thị controls tương ứng
+                const algo = btn.getAttribute('data-algo');
+                if (algo === 'ga-asa') {
+                    document.getElementById('ga-asa-controls').style.display = 'block';
+                    document.getElementById('multi-start-controls').style.display = 'none';
+                } else if (algo === 'multi-start') {
+                    document.getElementById('ga-asa-controls').style.display = 'none';
+                    document.getElementById('multi-start-controls').style.display = 'block';
+                }
+            });
+        });
+    </script>
 </body>
 </html>

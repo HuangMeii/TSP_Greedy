@@ -1392,7 +1392,7 @@ function calculateDistanceMatrix() {
     for (let i = 0; i < n; i++) {
         for (let j = 0; j < n; j++) {
             if (i !== j) {
-                matrix[i][j] = distance(points[i], points[j]);
+                matrix[i][j] = 0.01 * distance(points[i], points[j]);
             }
         }
     }

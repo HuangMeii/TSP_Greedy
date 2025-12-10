@@ -9,6 +9,9 @@ let currentStep = 0;
 let animationInterval = null;
 let algorithmResult = null; // ✅ THÊM dòng này
 
+// Thêm biến global (dòng ~10, sau let algorithmResult)
+let startPoint = 0; // Điểm bắt đầu mặc định
+
 
 // Canvas setup
 const canvas = document.querySelector('.visualization-area');
@@ -43,15 +46,21 @@ deleteButton.style.cssText = `
 canvas.appendChild(deleteButton);
 
 deleteButton.addEventListener('click', () => {
-    if (selectedPoint !== null && selectedPoint !== 0) {
+    if (selectedPoint !== null) {
         points.splice(selectedPoint, 1);
         points.forEach((p, i) => p.id = i);
+        
+        // Điều chỉnh startPoint nếu cần
+        if (startPoint >= points.length) {
+            startPoint = 0;
+        }
+        
         selectedPoint = null;
         deleteButton.style.display = 'none';
+        
+        updateStartPointSelect();
         drawPoints();
         updateCoordinatesPanel();
-    } else if (selectedPoint === 0) {
-        alert('Không thể xóa điểm xuất phát (Điểm 0)!');
     }
 });
 
@@ -306,8 +315,76 @@ function nextStep() {
     console.log('Final currentStep:', currentStep);
 }
 
-// ...existing code...
-// ...existing code...
+// Kiểm tra click vào điểm nào
+function getClickedPoint(x, y) {
+    for (let i = 0; i < points.length; i++) {
+        const dist = Math.sqrt(
+            Math.pow(x - points[i].x, 2) + 
+            Math.pow(y - points[i].y, 2)
+        );
+        if (dist <= 10) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Vẽ đường đi từng bước
+function drawPathStep(path, currentStep) {
+    ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    
+    // Vẽ các đường đi đã hoàn thành
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#4CAF50';
+    ctx.setLineDash([]);
+    
+    for (let i = 0; i < Math.min(currentStep, path.length - 1); i++) {
+        ctx.beginPath();
+        ctx.moveTo(points[path[i]].x, points[path[i]].y);
+        ctx.lineTo(points[path[i + 1]].x, points[path[i + 1]].y);
+        ctx.stroke();
+        
+        // Vẽ mũi tên
+        const angle = Math.atan2(
+            points[path[i + 1]].y - points[path[i]].y,
+            points[path[i + 1]].x - points[path[i]].x
+        );
+        const headlen = 12;
+        const arrowX = points[path[i + 1]].x;
+        const arrowY = points[path[i + 1]].y;
+        
+        ctx.beginPath();
+        ctx.moveTo(arrowX, arrowY);
+        ctx.lineTo(
+            arrowX - headlen * Math.cos(angle - Math.PI / 6),
+            arrowY - headlen * Math.sin(angle - Math.PI / 6)
+        );
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(arrowX, arrowY);
+        ctx.lineTo(
+            arrowX - headlen * Math.cos(angle + Math.PI / 6),
+            arrowY - headlen * Math.sin(angle + Math.PI / 6)
+        );
+        ctx.stroke();
+    }
+    
+    // Vẽ lại các điểm
+    drawPoints(false);
+    
+    // Highlight điểm hiện tại
+    if (currentStep > 0 && currentStep <= path.length - 1) {
+        const currentPointIndex = path[currentStep - 1];
+        if (points[currentPointIndex]) {
+            ctx.beginPath();
+            ctx.arc(points[currentPointIndex].x, points[currentPointIndex].y, 15, 0, Math.PI * 2);
+            ctx.strokeStyle = '#FF9800';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+    }
+}
 
 // Tính khoảng cách Euclidean
 function distance(p1, p2) {
@@ -546,18 +623,10 @@ function resetAnimation() {
 
 // Tạo điểm ngẫu nhiên
 function generateRandomPoints(count) {
-    // Luôn giữ điểm 0 ở trung tâm
-    const centerX = canvasElement.width / 2;
-    const centerY = canvasElement.height / 2;
+    points = [];
     
-    points = [{
-        x: centerX,
-        y: centerY,
-        id: 0
-    }];
-    
-    // Tạo các điểm ngẫu nhiên khác
-    for (let i = 1; i < count; i++) {
+    // Tạo các điểm ngẫu nhiên
+    for (let i = 0; i < count; i++) {
         points.push({
             x: Math.random() * (canvasElement.width - 40) + 20,
             y: Math.random() * (canvasElement.height - 40) + 20,
@@ -568,26 +637,100 @@ function generateRandomPoints(count) {
     selectedPoint = null;
     deleteButton.style.display = 'none';
     resetAnimation();
+    
+    // Cập nhật combobox
+    updateStartPointSelect();
+    
     drawPoints();
     updateCoordinatesPanel();
 }
 
 // Khởi tạo điểm 0 ở trung tâm
 function initializeCenter() {
-    const centerX = canvasElement.width / 2;
-    const centerY = canvasElement.height / 2;
-    
-    points = [{
-        x: centerX,
-        y: centerY,
-        id: 0
-    }];
-    
+    points = [];
+    startPoint = 0;
+    updateStartPointSelect();
     drawPoints();
     updateCoordinatesPanel();
 }
 
-// Vẽ điểm (không xóa canvas nếu đang có đường đi)
+// Cập nhật combobox điểm bắt đầu
+function updateStartPointSelect() {
+    const select = document.getElementById('start-point-select');
+    if (!select) return;
+    
+    const currentValue = select.value;
+    select.innerHTML = '';
+    
+    if (points.length === 0) {
+        select.innerHTML = '<option value="0">0</option>';
+        select.disabled = true;
+        startPoint = 0;
+        return;
+    }
+    
+    select.disabled = false;
+    
+    points.forEach((p, i) => {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `${i}`;
+        if (i === parseInt(currentValue) && i < points.length) {
+            option.selected = true;
+            startPoint = i;
+        }
+        select.appendChild(option);
+    });
+    
+    // Nếu điểm cũ không còn, chọn điểm 0
+    if (parseInt(currentValue) >= points.length) {
+        startPoint = 0;
+        select.value = 0;
+    }
+}
+
+// Thêm event listener cho select (sau updateStartPointSelect)
+document.addEventListener('DOMContentLoaded', () => {
+    const select = document.getElementById('start-point-select');
+    if (select) {
+        select.addEventListener('change', (e) => {
+            startPoint = parseInt(e.target.value);
+            console.log('Điểm bắt đầu được chọn:', startPoint);
+            
+            // Reset animation khi đổi điểm bắt đầu
+            resetAnimation();
+            
+            // Highlight điểm được chọn
+            drawPoints();
+        });
+    }
+});
+
+// Cập nhật hàm updateCoordinatesPanel (dòng ~818)
+function updateCoordinatesPanel() {
+    const panel = document.querySelector('.coordinates-panel');
+    panel.innerHTML = '<div style="padding: 15px; overflow-y: auto; max-height: 400px; font-family: monospace;">';
+    
+    if (points.length === 0) {
+        panel.innerHTML += '<div style="color: #999; text-align: center; padding: 20px;">Chưa có điểm nào</div>';
+    } else {
+        points.forEach((p, i) => {
+            const isSelected = i === selectedPoint;
+            const isStartPoint = i === startPoint;
+            panel.innerHTML += `<div style="color: #000; font-size: 13px; margin-bottom: 8px; padding: 5px; 
+                background: ${isSelected ? '#FFC107' : (isStartPoint ? '#E8F5E9' : '#fff')}; 
+                border-radius: 4px; border: ${isSelected ? '2px solid #FF5722' : (isStartPoint ? '2px solid #4CAF50' : 'none')};">
+                <strong>Điểm ${i}${isStartPoint ? ' 🏁 (Bắt đầu)' : ''}:</strong> (${Math.round(p.x)}, ${Math.round(p.y)})
+            </div>`;
+        });
+    }
+    
+    panel.innerHTML += '</div>';
+    
+    displayDistanceMatrix();
+}
+
+// Cập nhật hàm drawPoints để highlight điểm bắt đầu (dòng ~590)
 function drawPoints(clearCanvas = true) {
     if (clearCanvas) {
         ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -601,8 +744,13 @@ function drawPoints(clearCanvas = true) {
             ctx.fillStyle = '#FFC107';
             ctx.strokeStyle = '#FF5722';
             ctx.lineWidth = 3;
+        } else if (index === startPoint) {
+            // Highlight điểm bắt đầu bằng màu xanh lá
+            ctx.fillStyle = '#4CAF50';
+            ctx.strokeStyle = '#2E7D32';
+            ctx.lineWidth = 3;
         } else {
-            ctx.fillStyle = index === 0 ? '#FF0000' : '#2196F3';
+            ctx.fillStyle = '#2196F3';
             ctx.strokeStyle = '#000';
             ctx.lineWidth = 2;
         }
@@ -618,82 +766,13 @@ function drawPoints(clearCanvas = true) {
     });
 }
 
-// Kiểm tra click vào điểm nào
-function getClickedPoint(x, y) {
-    for (let i = 0; i < points.length; i++) {
-        const dist = Math.sqrt(
-            Math.pow(x - points[i].x, 2) + 
-            Math.pow(y - points[i].y, 2)
-        );
-        if (dist <= 10) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-// Vẽ đường đi từng bước
-function drawPathStep(path, currentStep) {
-    ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#4CAF50';
-    ctx.setLineDash([]);
-    
-    for (let i = 0; i < Math.min(currentStep, path.length - 1); i++) {
-        ctx.beginPath();
-        ctx.moveTo(points[path[i]].x, points[path[i]].y);
-        ctx.lineTo(points[path[i + 1]].x, points[path[i + 1]].y);
-        ctx.stroke();
-        
-        const angle = Math.atan2(
-            points[path[i + 1]].y - points[path[i]].y,
-            points[path[i + 1]].x - points[path[i]].x
-        );
-        const headlen = 12;
-        const arrowX = points[path[i + 1]].x;
-        const arrowY = points[path[i + 1]].y;
-        
-        ctx.beginPath();
-        ctx.moveTo(arrowX, arrowY);
-        ctx.lineTo(
-            arrowX - headlen * Math.cos(angle - Math.PI / 6),
-            arrowY - headlen * Math.sin(angle - Math.PI / 6)
-        );
-        ctx.stroke();
-        
-        ctx.beginPath();
-        ctx.moveTo(arrowX, arrowY);
-        ctx.lineTo(
-            arrowX - headlen * Math.cos(angle + Math.PI / 6),
-            arrowY - headlen * Math.sin(angle + Math.PI / 6)
-        );
-        ctx.stroke();
-    }
-    
-    drawPoints(false);
-    
-    if (currentStep > 0 && currentStep <= path.length - 1) {
-        const currentPointIndex = path[currentStep - 1];
-        if (points[currentPointIndex]) {
-            ctx.beginPath();
-            ctx.arc(points[currentPointIndex].x, points[currentPointIndex].y, 15, 0, Math.PI * 2);
-            ctx.strokeStyle = '#FF9800';
-            ctx.lineWidth = 4;
-            ctx.setLineDash([5, 5]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-        }
-    }
-}
-
 // Thuật toán Tham lam (Greedy - Nearest Neighbor)
 function greedyTSP() {
     if (points.length < 2) return { path: [], distance: 0 };
     
     const visited = new Array(points.length).fill(false);
-    const path = [0];
-    visited[0] = true;
+    const path = [startPoint]; // Bắt đầu từ điểm được chọn
+    visited[startPoint] = true;
     let totalDistance = 0;
     
     for (let i = 0; i < points.length - 1; i++) {
@@ -718,8 +797,8 @@ function greedyTSP() {
         }
     }
     
-    totalDistance += distance(points[path[path.length - 1]], points[0]);
-    path.push(0);
+    totalDistance += distance(points[path[path.length - 1]], points[startPoint]);
+    path.push(startPoint); // Quay về điểm bắt đầu
     
     return { path, distance: totalDistance };
 }
@@ -732,28 +811,25 @@ function exhaustiveTSP() {
         return { path: [], distance: 0, maxDistance: 0 };
     }
     
-    const indices = [...Array(points.length).keys()].slice(1);
+    // Lấy tất cả điểm trừ điểm bắt đầu
+    const indices = [...Array(points.length).keys()].filter(i => i !== startPoint);
     let minPath = null;
     let minDistance = Infinity;
-    let maxDistance = 0; // Thêm biến lưu quãng đường dài nhất
+    let maxDistance = 0;
     
     function permute(arr, start = 0) {
         if (start === arr.length - 1) {
-            const path = [0, ...arr, 0];
+            const fullPath = [startPoint, ...arr, startPoint];
             let dist = 0;
-            for (let i = 0; i < path.length - 1; i++) {
-                dist += distance(points[path[i]], points[path[i + 1]]);
+            for (let i = 0; i < fullPath.length - 1; i++) {
+                dist += distance(points[fullPath[i]], points[fullPath[i + 1]]);
             }
-            
-            // Cập nhật đường đi ngắn nhất
-            if (dist < minDistance) {
-                minDistance = dist;
-                minPath = [...path];
-            }
-            
-            // Cập nhật quãng đường dài nhất
             if (dist > maxDistance) {
                 maxDistance = dist;
+            }
+            if (dist < minDistance) {
+                minDistance = dist;
+                minPath = [...fullPath];
             }
             return;
         }
@@ -781,11 +857,14 @@ function dynamicTSP() {
     const dp = Array(1 << n).fill(null).map(() => Array(n).fill(Infinity));
     const parent = Array(1 << n).fill(null).map(() => Array(n).fill(-1));
     
-    dp[1][0] = 0;
+    dp[1 << startPoint][startPoint] = 0;
     
-    for (let mask = 1; mask < (1 << n); mask++) {
+    for (let mask = 0; mask < (1 << n); mask++) {
+        if (!(mask & (1 << startPoint))) continue;
+        
         for (let last = 0; last < n; last++) {
             if (!(mask & (1 << last))) continue;
+            if (dp[mask][last] === Infinity) continue;
             
             for (let next = 0; next < n; next++) {
                 if (mask & (1 << next)) continue;
@@ -805,8 +884,9 @@ function dynamicTSP() {
     let minDist = Infinity;
     let lastNode = -1;
     
-    for (let i = 1; i < n; i++) {
-        const totalDist = dp[fullMask][i] + distance(points[i], points[0]);
+    for (let i = 0; i < n; i++) {
+        if (i === startPoint) continue;
+        const totalDist = dp[fullMask][i] + distance(points[i], points[startPoint]);
         if (totalDist < minDist) {
             minDist = totalDist;
             lastNode = i;
@@ -824,32 +904,9 @@ function dynamicTSP() {
         current = prev;
     }
     
-    path.push(0);
+    path.push(startPoint);
     
     return { path, distance: minDist };
-}
-
-// Cập nhật panel tọa độ
-function updateCoordinatesPanel() {
-    const panel = document.querySelector('.coordinates-panel');
-    panel.innerHTML = '<div style="padding: 15px; overflow-y: auto; max-height: 400px; font-family: monospace;">';
-    
-    if (points.length === 0) {
-        panel.innerHTML += '<div style="color: #999; text-align: center; padding: 20px;">Chưa có điểm nào</div>';
-    } else {
-        points.forEach((p, i) => {
-            const isSelected = i === selectedPoint;
-            panel.innerHTML += `<div style="color: #000; font-size: 13px; margin-bottom: 8px; padding: 5px; 
-                background: ${isSelected ? '#FFC107' : (i === 0 ? '#ffebee' : '#fff')}; 
-                border-radius: 4px; border: ${isSelected ? '2px solid #FF5722' : 'none'};">
-                <strong>Điểm ${i}${i === 0 ? ' (Xuất phát)' : ''}:</strong> (${Math.round(p.x)}, ${Math.round(p.y)})
-            </div>`;
-        });
-    }
-    
-    panel.innerHTML += '</div>';
-    
-    displayDistanceMatrix();
 }
 
 // Hiển thị kết quả
@@ -1364,6 +1421,9 @@ canvasElement.addEventListener('click', (e) => {
         
         drawPoints();
         updateCoordinatesPanel();
+        
+        // Cập nhật combobox
+        updateStartPointSelect();
     }
 });
 
@@ -1375,6 +1435,7 @@ canvas.addEventListener('mouseleave', () => {
         drawPoints();
     }
 });
+
 
 
 

@@ -11,7 +11,14 @@ let algorithmResult = null; // ✅ THÊM dòng này
 
 // Thêm biến global (dòng ~10, sau let algorithmResult)
 let startPoint = 0; // Điểm bắt đầu mặc định
+let userSelectedStart = false;
 
+// Thêm biến global để lưu điểm bắt đầu tốt nhất (thêm vào đầu file, dòng ~12)
+let bestStartPoints = {
+    greedy: 0,
+    exhaustive: 0,
+    dynamic: 0
+};
 
 // Canvas setup
 const canvas = document.querySelector('.visualization-area');
@@ -157,7 +164,740 @@ function updateProgress(current, total) {
 // Cập nhật số bước - Bỏ hàm cũ
 // function updateSteps(current, total) { ... }
 
+// Hàm tìm điểm bắt đầu tốt nhất cho thuật toán Greedy
+function findBestStartPointGreedy() {
+    if (points.length < 2) return { bestStart: 0, bestDistance: 0, bestPath: [] };
+    
+    let bestStart = 0;
+    let bestDistance = Infinity;
+    let bestPath = [];
+    
+    // Thử tất cả các điểm làm điểm bắt đầu
+    for (let start = 0; start < points.length; start++) {
+        const visited = new Array(points.length).fill(false);
+        const path = [start];
+        visited[start] = true;
+        let totalDistance = 0;
+        
+        for (let i = 0; i < points.length - 1; i++) {
+            let current = path[path.length - 1];
+            let nearest = -1;
+            let minDist = Infinity;
+            
+            for (let j = 0; j < points.length; j++) {
+                if (!visited[j]) {
+                    let dist = distance(points[current], points[j]);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearest = j;
+                    }
+                }
+            }
+            
+            if (nearest !== -1) {
+                path.push(nearest);
+                visited[nearest] = true;
+                totalDistance += minDist;
+            }
+        }
+        
+        totalDistance += distance(points[path[path.length - 1]], points[start]);
+        path.push(start);
+        
+        if (totalDistance < bestDistance) {
+            bestDistance = totalDistance;
+            bestStart = start;
+            bestPath = [...path];
+        }
+    }
+    
+    return { bestStart, bestDistance: bestDistance, bestPath };
+}
+
+// Hàm tìm điểm bắt đầu tốt nhất cho thuật toán Vét cạn
+function findBestStartPointExhaustive() {
+    if (points.length < 2) return { bestStart: 0, bestDistance: 0, bestPath: [], maxDistance: 0 };
+    if (points.length > 10) {
+        return { bestStart: 0, bestDistance: 0, bestPath: [], maxDistance: 0, error: true };
+    }
+    
+    let globalBestStart = 0;
+    let globalBestDistance = Infinity;
+    let globalBestPath = [];
+    let globalMaxDistance = 0;
+    
+    // Thử tất cả các điểm làm điểm bắt đầu
+    for (let startIdx = 0; startIdx < points.length; startIdx++) {
+        const indices = [...Array(points.length).keys()].filter(i => i !== startIdx);
+        let minPath = null;
+        let minDistance = Infinity;
+        let maxDistance = 0;
+        
+        function permute(arr, start = 0) {
+            if (start === arr.length - 1) {
+                const fullPath = [startIdx, ...arr, startIdx];
+                let dist = 0;
+                for (let i = 0; i < fullPath.length - 1; i++) {
+                    dist += distance(points[fullPath[i]], points[fullPath[i + 1]]);
+                }
+                if (dist > maxDistance) {
+                    maxDistance = dist;
+                }
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    minPath = [...fullPath];
+                }
+                return;
+            }
+            
+            for (let i = start; i < arr.length; i++) {
+                [arr[start], arr[i]] = [arr[i], arr[start]];
+                permute(arr, start + 1);
+                [arr[start], arr[i]] = [arr[i], arr[start]];
+            }
+        }
+        
+        permute(indices);
+        
+        if (maxDistance > globalMaxDistance) {
+            globalMaxDistance = maxDistance;
+        }
+        
+        if (minDistance < globalBestDistance) {
+            globalBestDistance = minDistance;
+            globalBestStart = startIdx;
+            globalBestPath = [...minPath];
+        }
+    }
+    
+    return { 
+        bestStart: globalBestStart, 
+        bestDistance: globalBestDistance, 
+        bestPath: globalBestPath,
+        maxDistance: globalMaxDistance 
+    };
+}
+
+// Hàm tìm điểm bắt đầu tốt nhất cho thuật toán QHD
+function findBestStartPointDynamic() {
+    if (points.length < 2) return { bestStart: 0, bestDistance: 0, bestPath: [] };
+    if (points.length > 15) {
+        return { bestStart: 0, bestDistance: 0, bestPath: [], error: true };
+    }
+    
+    let globalBestStart = 0;
+    let globalBestDistance = Infinity;
+    let globalBestPath = [];
+    
+    // Thử tất cả các điểm làm điểm bắt đầu
+    for (let startIdx = 0; startIdx < points.length; startIdx++) {
+        const n = points.length;
+        const dp = Array(1 << n).fill(null).map(() => Array(n).fill(Infinity));
+        const parent = Array(1 << n).fill(null).map(() => Array(n).fill(-1));
+        
+        dp[1 << startIdx][startIdx] = 0;
+        
+        for (let mask = 0; mask < (1 << n); mask++) {
+            if (!(mask & (1 << startIdx))) continue;
+            
+            for (let last = 0; last < n; last++) {
+                if (!(mask & (1 << last))) continue;
+                if (dp[mask][last] === Infinity) continue;
+                
+                for (let next = 0; next < n; next++) {
+                    if (mask & (1 << next)) continue;
+                    
+                    const newMask = mask | (1 << next);
+                    const newDist = dp[mask][last] + distance(points[last], points[next]);
+                    
+                    if (newDist < dp[newMask][next]) {
+                        dp[newMask][next] = newDist;
+                        parent[newMask][next] = last;
+                    }
+                }
+            }
+        }
+        
+        const fullMask = (1 << n) - 1;
+        let minDist = Infinity;
+        let lastNode = -1;
+        
+        for (let i = 0; i < n; i++) {
+            if (i === startIdx) continue;
+            const totalDist = dp[fullMask][i] + distance(points[i], points[startIdx]);
+            if (totalDist < minDist) {
+                minDist = totalDist;
+                lastNode = i;
+            }
+        }
+        
+        const path = [];
+        let mask = fullMask;
+        let current = lastNode;
+        
+        while (current !== -1) {
+            path.unshift(current);
+            const prev = parent[mask][current];
+            mask ^= (1 << current);
+            current = prev;
+        }
+        
+        path.push(startIdx);
+        
+        if (minDist < globalBestDistance) {
+            globalBestDistance = minDist;
+            globalBestStart = startIdx;
+            globalBestPath = [...path];
+        }
+    }
+    
+    return { bestStart: globalBestStart, bestDistance: globalBestDistance, bestPath: globalBestPath };
+}
+
+
+// Thuật toán Tham lam (Greedy - Nearest Neighbor) - SỬA LẠI
+// function greedyTSP(useSelectedStart = true) {
+//     // ✅ Nếu useSelectedStart = true, dùng điểm người dùng chọn
+//     if (useSelectedStart && startPoint !== undefined) {
+//         const visited = new Array(points.length).fill(false);
+//         const path = [startPoint];
+//         visited[startPoint] = true;
+//         let totalDistance = 0;
+        
+//         for (let i = 0; i < points.length - 1; i++) {
+//             let nearest = -1;
+//             let minDist = Infinity;
+            
+//             for (let j = 0; j < points.length; j++) {
+//                 if (!visited[j]) {
+//                     const dist = distance(points[path[path.length - 1]], points[j]);
+//                     if (dist < minDist) {
+//                         minDist = dist;
+//                         nearest = j;
+//                     }
+//                 }
+//             }
+            
+//             if (nearest !== -1) {
+//                 path.push(nearest);
+//                 visited[nearest] = true;
+//                 totalDistance += minDist;
+//             }
+//         }
+        
+//         totalDistance += distance(points[path[path.length - 1]], points[startPoint]);
+//         path.push(startPoint);
+        
+//         return { 
+//             path: path, 
+//             distance: totalDistance,
+//             startPoint: startPoint 
+//         };
+//     }
+    
+//     // ✅ Nếu không, tìm điểm bắt đầu tốt nhất
+//     const result = findBestStartPointGreedy();
+//     bestStartPoints.greedy = result.bestStart;
+    
+//     return { 
+//         path: result.bestPath, 
+//         distance: result.bestDistance,
+//         startPoint: result.bestStart 
+//     };
+// }
+function greedyTSP() {
+    // ✅ Nếu người dùng đã chọn điểm thủ công, dùng điểm đó
+    if (userSelectedStart && startPoint !== undefined) {
+        const visited = new Array(points.length).fill(false);
+        const path = [startPoint];
+        visited[startPoint] = true;
+        let totalDistance = 0;
+        
+        for (let i = 0; i < points.length - 1; i++) {
+            let nearest = -1;
+            let minDist = Infinity;
+            
+            for (let j = 0; j < points.length; j++) {
+                if (!visited[j]) {
+                    const dist = distance(points[path[path.length - 1]], points[j]);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearest = j;
+                    }
+                }
+            }
+            
+            if (nearest !== -1) {
+                path.push(nearest);
+                visited[nearest] = true;
+                totalDistance += minDist;
+            }
+        }
+        
+        totalDistance += distance(points[path[path.length - 1]], points[startPoint]);
+        path.push(startPoint);
+        
+        return { 
+            path: path, 
+            distance: totalDistance,
+            startPoint: startPoint 
+        };
+    }
+    
+    // ✅ Mặc định: Tìm điểm bắt đầu tốt nhất
+    const result = findBestStartPointGreedy();
+    bestStartPoints.greedy = result.bestStart;
+    
+    return { 
+        path: result.bestPath, 
+        distance: result.bestDistance,
+        startPoint: result.bestStart 
+    };
+}
+
+// Thuật toán Vét cạn (Brute Force) - SỬA LẠI
+// function exhaustiveTSP(useSelectedStart = true) {
+//     if (points.length < 2) return { path: [], distance: 0, maxDistance: 0, startPoint: 0 };
+//     if (points.length > 10) {
+//         alert('Vét cạn chỉ khả thi với <= 10 điểm!');
+//         return { path: [], distance: 0, maxDistance: 0, startPoint: 0 };
+//     }
+    
+//     // ✅ Nếu useSelectedStart = true, dùng điểm người dùng chọn
+//     if (useSelectedStart && startPoint !== undefined) {
+//         const indices = [...Array(points.length).keys()].filter(i => i !== startPoint);
+//         let minPath = null;
+//         let minDistance = Infinity;
+//         let maxDistance = 0;
+        
+//         function permute(arr, start = 0) {
+//             if (start === arr.length - 1) {
+//                 const testPath = [startPoint, ...arr, startPoint];
+//                 let dist = 0;
+                
+//                 for (let i = 0; i < testPath.length - 1; i++) {
+//                     dist += distance(points[testPath[i]], points[testPath[i + 1]]);
+//                 }
+                
+//                 if (dist > maxDistance) {
+//                     maxDistance = dist;
+//                 }
+                
+//                 if (dist < minDistance) {
+//                     minDistance = dist;
+//                     minPath = [...testPath];
+//                 }
+//                 return;
+//             }
+            
+//             for (let i = start; i < arr.length; i++) {
+//                 [arr[start], arr[i]] = [arr[i], arr[start]];
+//                 permute(arr, start + 1);
+//                 [arr[start], arr[i]] = [arr[i], arr[start]];
+//             }
+//         }
+        
+//         permute(indices);
+        
+//         return { 
+//             path: minPath, 
+//             distance: minDistance,
+//             maxDistance: maxDistance,
+//             startPoint: startPoint
+//         };
+//     }
+    
+//     // ✅ Nếu không, tìm điểm bắt đầu tốt nhất
+//     const result = findBestStartPointExhaustive();
+//     bestStartPoints.exhaustive = result.bestStart;
+    
+//     return { 
+//         path: result.bestPath, 
+//         distance: result.bestDistance,
+//         maxDistance: result.maxDistance,
+//         startPoint: result.bestStart
+//     };
+// }
+function exhaustiveTSP() {
+    if (points.length < 2) return { path: [], distance: 0, maxDistance: 0, startPoint: 0 };
+    if (points.length > 10) {
+        alert('Vét cạn chỉ khả thi với <= 10 điểm!');
+        return { path: [], distance: 0, maxDistance: 0, startPoint: 0 };
+    }
+    
+    // ✅ Nếu người dùng đã chọn điểm thủ công, dùng điểm đó
+    if (userSelectedStart && startPoint !== undefined) {
+        const indices = [...Array(points.length).keys()].filter(i => i !== startPoint);
+        let minPath = null;
+        let minDistance = Infinity;
+        let maxDistance = 0;
+        
+        function permute(arr, start = 0) {
+            if (start === arr.length - 1) {
+                const testPath = [startPoint, ...arr, startPoint];
+                let dist = 0;
+                
+                for (let i = 0; i < testPath.length - 1; i++) {
+                    dist += distance(points[testPath[i]], points[testPath[i + 1]]);
+                }
+                
+                if (dist > maxDistance) {
+                    maxDistance = dist;
+                }
+                
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    minPath = [...testPath];
+                }
+                return;
+            }
+            
+            for (let i = start; i < arr.length; i++) {
+                [arr[start], arr[i]] = [arr[i], arr[start]];
+                permute(arr, start + 1);
+                [arr[start], arr[i]] = [arr[i], arr[start]];
+            }
+        }
+        
+        permute(indices);
+        
+        return { 
+            path: minPath, 
+            distance: minDistance,
+            maxDistance: maxDistance,
+            startPoint: startPoint
+        };
+    }
+    
+    // ✅ Mặc định: Tìm điểm bắt đầu tốt nhất
+    const result = findBestStartPointExhaustive();
+    bestStartPoints.exhaustive = result.bestStart;
+    
+    return { 
+        path: result.bestPath, 
+        distance: result.bestDistance,
+        maxDistance: result.maxDistance,
+        startPoint: result.bestStart
+    };
+}
+
+// Thuật toán Quy hoạch động (Dynamic Programming) - SỬA LẠI
+// function dynamicTSP(useSelectedStart = true) {
+//     if (points.length < 2) return { path: [], distance: 0, startPoint: 0 };
+//     if (points.length > 15) {
+//         alert('QHD chỉ khả thi với <= 15 điểm!');
+//         return { path: [], distance: 0, startPoint: 0 };
+//     }
+    
+//     // ✅ Nếu useSelectedStart = true, dùng điểm người dùng chọn
+//     if (useSelectedStart && startPoint !== undefined) {
+//         const n = points.length;
+//         const dp = Array(1 << n).fill(null).map(() => Array(n).fill(Infinity));
+//         const parent = Array(1 << n).fill(null).map(() => Array(n).fill(-1));
+        
+//         dp[1 << startPoint][startPoint] = 0;
+        
+//         for (let mask = 0; mask < (1 << n); mask++) {
+//             for (let i = 0; i < n; i++) {
+//                 if (!(mask & (1 << i)) || dp[mask][i] === Infinity) continue;
+                
+//                 for (let j = 0; j < n; j++) {
+//                     if (mask & (1 << j)) continue;
+                    
+//                     const newMask = mask | (1 << j);
+//                     const newDist = dp[mask][i] + distance(points[i], points[j]);
+                    
+//                     if (newDist < dp[newMask][j]) {
+//                         dp[newMask][j] = newDist;
+//                         parent[newMask][j] = i;
+//                     }
+//                 }
+//             }
+//         }
+        
+//         const fullMask = (1 << n) - 1;
+//         let minDist = Infinity;
+//         let lastNode = -1;
+        
+//         for (let i = 0; i < n; i++) {
+//             const totalDist = dp[fullMask][i] + distance(points[i], points[startPoint]);
+//             if (totalDist < minDist) {
+//                 minDist = totalDist;
+//                 lastNode = i;
+//             }
+//         }
+        
+//         const path = [];
+//         let mask = fullMask;
+//         let current = lastNode;
+        
+//         while (current !== -1) {
+//             path.unshift(current);
+//             const prev = parent[mask][current];
+//             mask ^= (1 << current);
+//             current = prev;
+//         }
+        
+//         path.push(startPoint);
+        
+//         return { 
+//             path: path, 
+//             distance: minDist,
+//             startPoint: startPoint
+//         };
+//     }
+    
+//     // ✅ Nếu không, tìm điểm bắt đầu tốt nhất
+//     const result = findBestStartPointDynamic();
+//     bestStartPoints.dynamic = result.bestStart;
+    
+//     return { 
+//         path: result.bestPath, 
+//         distance: result.bestDistance,
+//         startPoint: result.bestStart
+//     };
+// }
+function dynamicTSP() {
+    if (points.length < 2) return { path: [], distance: 0, startPoint: 0 };
+    if (points.length > 15) {
+        alert('QHD chỉ khả thi với <= 15 điểm!');
+        return { path: [], distance: 0, startPoint: 0 };
+    }
+    
+    // ✅ Nếu người dùng đã chọn điểm thủ công, dùng điểm đó
+    if (userSelectedStart && startPoint !== undefined) {
+        const n = points.length;
+        const dp = Array(1 << n).fill(null).map(() => Array(n).fill(Infinity));
+        const parent = Array(1 << n).fill(null).map(() => Array(n).fill(-1));
+        
+        dp[1 << startPoint][startPoint] = 0;
+        
+        for (let mask = 0; mask < (1 << n); mask++) {
+            for (let i = 0; i < n; i++) {
+                if (!(mask & (1 << i)) || dp[mask][i] === Infinity) continue;
+                
+                for (let j = 0; j < n; j++) {
+                    if (mask & (1 << j)) continue;
+                    
+                    const newMask = mask | (1 << j);
+                    const newDist = dp[mask][i] + distance(points[i], points[j]);
+                    
+                    if (newDist < dp[newMask][j]) {
+                        dp[newMask][j] = newDist;
+                        parent[newMask][j] = i;
+                    }
+                }
+            }
+        }
+        
+        const fullMask = (1 << n) - 1;
+        let minDist = Infinity;
+        let lastNode = -1;
+        
+        for (let i = 0; i < n; i++) {
+            const totalDist = dp[fullMask][i] + distance(points[i], points[startPoint]);
+            if (totalDist < minDist) {
+                minDist = totalDist;
+                lastNode = i;
+            }
+        }
+        
+        const path = [];
+        let mask = fullMask;
+        let current = lastNode;
+        
+        while (current !== -1) {
+            path.unshift(current);
+            const prev = parent[mask][current];
+            mask ^= (1 << current);
+            current = prev;
+        }
+        
+        path.push(startPoint);
+        
+        return { 
+            path: path, 
+            distance: minDist,
+            startPoint: startPoint
+        };
+    }
+    
+    // ✅ Mặc định: Tìm điểm bắt đầu tốt nhất
+    const result = findBestStartPointDynamic();
+    bestStartPoints.dynamic = result.bestStart;
+    
+    return { 
+        path: result.bestPath, 
+        distance: result.bestDistance,
+        startPoint: result.bestStart
+    };
+}
 // Chạy thuật toán với animation - SỬA LẠI
+async function runAlgorithm(algorithm, findBestStart = false) {
+    if (points.length < 2) {
+        alert('⚠️ Vui lòng tạo ít nhất 2 điểm!');
+        return;
+    }
+    
+    resetAnimation();
+    
+    selectedAlgorithm = algorithm;
+    const startTime = performance.now();
+    let result;
+    
+    // ✅ Truyền tham số để quyết định dùng startPoint hay tìm điểm tốt nhất
+    switch (algorithm) {
+        case 'greedy':
+            result = greedyTSP(!findBestStart);
+            break;
+        case 'exhaustive':
+            result = exhaustiveTSP(!findBestStart);
+            break;
+        case 'dynamic':
+            result = dynamicTSP(!findBestStart);
+            break;
+    }
+    
+    const endTime = performance.now();
+    const executionTime = endTime - startTime;
+    
+    // ✅ Chỉ cập nhật startPoint nếu đang tìm điểm tốt nhất
+    if (findBestStart && result.startPoint !== undefined) {
+        startPoint = result.startPoint;
+        updateStartPointSelect();
+        updateCoordinatesPanel();
+    }
+    
+    displayResults(algorithm, result, executionTime);
+    
+    if (result.path && result.path.length > 0) {
+        algorithmResult = result;
+        currentPath = result.path;
+        currentStep = 0;
+        
+        // Highlight nút thuật toán đã chọn
+        document.querySelectorAll('.algorithm-button').forEach(btn => {
+            btn.style.background = '';
+            btn.style.color = '';
+        });
+        
+        if (algorithm === 'greedy') {
+            document.querySelector('.greedy-button').style.background = 'linear-gradient(135deg, #FFB6C1 0%, #FFC0CB 100%)';
+            document.querySelector('.greedy-button').style.color = 'white';
+        } else if (algorithm === 'exhaustive') {
+            document.querySelector('.exhaustive-button').style.background = 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)';
+            document.querySelector('.exhaustive-button').style.color = 'white';
+        } else {
+            document.querySelector('.dynamic-button').style.background = 'linear-gradient(135deg, #87CEEB 0%, #4682B4 100%)';
+            document.querySelector('.dynamic-button').style.color = 'white';
+        }
+        
+        // Chỉ vẽ các điểm, không tự động chạy animation
+        drawPoints();
+    }
+}
+// Thuật toán Vét cạn (Brute Force) - SỬA LẠI
+function exhaustiveTSP() {
+    if (points.length < 2) return { path: [], distance: 0, maxDistance: 0, startPoint: 0 };
+    if (points.length > 10) {
+        alert('Vét cạn chỉ khả thi với <= 10 điểm!');
+        return { path: [], distance: 0, maxDistance: 0, startPoint: 0 };
+    }
+    
+    const result = findBestStartPointExhaustive();
+    bestStartPoints.exhaustive = result.bestStart;
+    
+    return { 
+        path: result.bestPath, 
+        distance: result.bestDistance,
+        maxDistance: result.maxDistance,
+        startPoint: result.bestStart
+    };
+}
+
+// Thuật toán Quy hoạch động (Dynamic Programming) - SỬA LẠI
+function dynamicTSP() {
+    if (points.length < 2) return { path: [], distance: 0, startPoint: 0 };
+    if (points.length > 15) {
+        alert('QHD chỉ khả thi với <= 15 điểm!');
+        return { path: [], distance: 0, startPoint: 0 };
+    }
+    
+    const result = findBestStartPointDynamic();
+    bestStartPoints.dynamic = result.bestStart;
+    
+    return { 
+        path: result.bestPath, 
+        distance: result.bestDistance,
+        startPoint: result.bestStart
+    };
+}
+
+// Chạy thuật toán với animation - SỬA LẠI
+// async function runAlgorithm(algorithm) {
+//     if (points.length < 2) {
+//         alert('⚠️ Vui lòng tạo ít nhất 2 điểm!');
+//         return;
+//     }
+    
+//     resetAnimation();
+    
+//     selectedAlgorithm = algorithm;
+//     const startTime = performance.now();
+//     let result;
+    
+//     switch (algorithm) {
+//         case 'greedy':
+//             result = greedyTSP();
+//             break;
+//         case 'exhaustive':
+//             result = exhaustiveTSP();
+//             break;
+//         case 'dynamic':
+//             result = dynamicTSP();
+//             break;
+//     }
+    
+//     const endTime = performance.now();
+//     const executionTime = endTime - startTime;
+    
+//     // ✅ Cập nhật startPoint theo kết quả tốt nhất
+//     if (result.startPoint !== undefined) {
+//         startPoint = result.startPoint;
+//         updateStartPointSelect();
+//         // ✅ THÊM DÒNG NÀY để cập nhật bảng tọa độ
+//         updateCoordinatesPanel();
+//     }
+    
+//     displayResults(algorithm, result, executionTime);
+    
+//     if (result.path && result.path.length > 0) {
+//         algorithmResult = result;
+//         currentPath = result.path;
+//         currentStep = 0;
+        
+//         // Highlight nút thuật toán đã chọn
+//         document.querySelectorAll('.algorithm-button').forEach(btn => {
+//             btn.style.background = '#FFF0F5';
+//             btn.style.color = '';
+//         });
+        
+//         if (algorithm === 'greedy') {
+//             document.querySelector('.greedy-button').style.background = 'linear-gradient(135deg, #FFB6C1 0%, #FFC0CB 100%)';
+//             document.querySelector('.greedy-button').style.color = 'white';
+//         } else if (algorithm === 'exhaustive') {
+//             document.querySelector('.exhaustive-button').style.background = 'linear-gradient(135deg, #FFDAB9 0%, #FFE4B5 100%)';
+//             document.querySelector('.exhaustive-button').style.color = 'white';
+//         } else if (algorithm === 'dynamic') {
+//             document.querySelector('.dynamic-button').style.background = 'linear-gradient(135deg, #E6E6FA 0%, #F0E6FF 100%)';
+//             document.querySelector('.dynamic-button').style.color = 'white';
+//         }
+        
+//         // Chỉ vẽ các điểm, không tự động chạy animation
+//         drawPoints();
+//     }
+// }
+// Chạy thuật toán với animation
 async function runAlgorithm(algorithm) {
     if (points.length < 2) {
         alert('⚠️ Vui lòng tạo ít nhất 2 điểm!');
@@ -167,9 +907,9 @@ async function runAlgorithm(algorithm) {
     resetAnimation();
     
     selectedAlgorithm = algorithm;
-    // ✅ ĐÚNG - Đo thời gian THUẦN của thuật toán
-    const startTime = performance.now(); // Đo TRƯỚC khi chạy
+    const startTime = performance.now();
     let result;
+    
     switch (algorithm) {
         case 'greedy':
             result = greedyTSP();
@@ -181,8 +921,16 @@ async function runAlgorithm(algorithm) {
             result = dynamicTSP();
             break;
     }
-    const endTime = performance.now(); // Đo NGAY SAU khi chạy xong
+    
+    const endTime = performance.now();
     const executionTime = endTime - startTime;
+    
+    // ✅ Cập nhật startPoint theo kết quả (tốt nhất hoặc người dùng chọn)
+    if (result.startPoint !== undefined) {
+        startPoint = result.startPoint;
+        updateStartPointSelect();
+        updateCoordinatesPanel();
+    }
     
     displayResults(algorithm, result, executionTime);
     
@@ -193,7 +941,7 @@ async function runAlgorithm(algorithm) {
         
         // Highlight nút thuật toán đã chọn
         document.querySelectorAll('.algorithm-button').forEach(btn => {
-            btn.style.background = '#FFF0F5';
+            btn.style.background = '';
             btn.style.color = '';
         });
         
@@ -201,118 +949,363 @@ async function runAlgorithm(algorithm) {
             document.querySelector('.greedy-button').style.background = 'linear-gradient(135deg, #FFB6C1 0%, #FFC0CB 100%)';
             document.querySelector('.greedy-button').style.color = 'white';
         } else if (algorithm === 'exhaustive') {
-            document.querySelector('.exhaustive-button').style.background = 'linear-gradient(135deg, #FFDAB9 0%, #FFE4B5 100%)';
+            document.querySelector('.exhaustive-button').style.background = 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)';
             document.querySelector('.exhaustive-button').style.color = 'white';
-        } else if (algorithm === 'dynamic') {
-            document.querySelector('.dynamic-button').style.background = 'linear-gradient(135deg, #E6E6FA 0%, #F0E6FF 100%)';
+        } else {
+            document.querySelector('.dynamic-button').style.background = 'linear-gradient(135deg, #87CEEB 0%, #4682B4 100%)';
             document.querySelector('.dynamic-button').style.color = 'white';
         }
         
-        // Chỉ vẽ các điểm, không tự động chạy animation
         drawPoints();
     }
 }
-// Next step - Chạy theo số bước người dùng nhập - SỬA LẠI
-// function nextStep() {
-//     // Nếu chưa có thuật toán, tự động chạy Tham lam
-//     if (!currentPath || currentPath.length === 0) {
-//         if (points.length < 2) {
-//             alert('⚠️ Vui lòng tạo ít nhất 2 điểm!');
-//             return;
-//         }
-        
-//         runAlgorithm('greedy');
-//         return;
-//     }
-    
-//     // ✅ SỬA: Kiểm tra đã hoàn thành chưa (phải vẽ đủ n-1 đoạn)
-//     if (currentStep >= currentPath.length - 1) {
-//         alert('✅ Đã hoàn thành tất cả các bước!');
-//         return;
-//     }
-    
-//     if (animationInterval) {
-//         clearInterval(animationInterval);
-//         animationInterval = null;
-//     }
-    
-//     const stepsToRun = parseInt(stepsInput.value) || 1;
-    
-//     for (let i = 0; i < stepsToRun; i++) {
-//         // ✅ SỬA: Kiểm tra trong vòng lặp
-//         if (currentStep >= currentPath.length - 1) {
-//             isAnimating = false;
-//             updateProgress(currentPath.length - 1, currentPath.length - 1);
-//             alert('✅ Đã hoàn thành tất cả các bước!');
-//             break;
-//         }
-        
-//         currentStep++; // ✅ Tăng trước khi vẽ
-//         drawPathStep(currentPath, currentStep);
-//         updateProgress(currentStep, currentPath.length - 1);
-//     }
-// }
-// Next step - Chạy theo số bước người dùng nhập
-// Next step - Chạy theo số bước người dùng nhập
-function nextStep() {
-    console.log('🔍 nextStep called');
-    console.log('currentPath:', currentPath);
-    console.log('currentStep:', currentStep);
-    console.log('points.length:', points.length);
-    
-    // Nếu chưa có thuật toán, tự động chạy Tham lam
-    if (!currentPath || currentPath.length === 0) {
-        console.log('⚠️ No path, checking points...');
-        if (points.length < 2) {
-            alert('⚠️ Vui lòng tạo ít nhất 2 điểm!');
-            return;
+// Animation từng bước
+function animatePathStep() {
+    if (currentStep > currentPath.length - 1) {
+        if (animationInterval) {
+            clearInterval(animationInterval);
+            animationInterval = null;
         }
-        
-        console.log('✅ Running greedy algorithm...');
-        runAlgorithm('greedy');
-        return; // ✅ Dừng ở đây, không vẽ gì
-    }
-    
-    console.log('✅ Path exists, length:', currentPath.length);
-    
-    // Kiểm tra đã hoàn thành chưa
-    if (currentStep >= currentPath.length - 1) {
-        alert('✅ Đã hoàn thành tất cả các bước!');
+        isAnimating = false;
+        updateProgress(currentPath.length - 1, currentPath.length - 1);
         return;
     }
     
-    // Dừng animation nếu đang chạy
+    drawPathStep(currentPath, currentStep + 1);
+    updateProgress(currentStep, currentPath.length - 1);
+    currentStep++;
+}
+
+// Hiển thị kết quả
+// function displayResults(algorithm, result, time) {
+//     saveResults(algorithm, result, time);
+    
+//     let pathText = '';
+//     if (result.path && result.path.length > 0) {
+//         if (result.path.length > 10) {
+//             const first4 = result.path.slice(0, 4).join(' → ');
+//             const last4 = result.path.slice(-4).join(' → ');
+//             pathText = `${first4} → ... → ${last4}`;
+//         } else {
+//             pathText = result.path.join(' → ');
+//         }
+//     } else {
+//         pathText = 'Chưa có đường đi';
+//     }
+//     document.querySelector('.distance-value').textContent = pathText;
+    
+//     const distanceInKm = result.distance ? (result.distance * 0.01).toFixed(1) : '0.0';
+//     document.querySelector('.total-distance-value').textContent = distanceInKm + ' km';
+    
+//     // ✅ Hiển thị thời gian với độ chính xác cao cho giá trị nhỏ
+//     let timeText;
+//     if (time === 0) {
+//         timeText = '0ms';
+//     } else if (time < 0.1) {
+//         timeText = `${time.toFixed(8)}ms`;
+//     } else {
+//         timeText = `${time.toFixed(1)}ms`;
+//     }
+//     document.querySelector('.execution-time-value').textContent = timeText;
+    
+//     // Hiển thị quãng đường dài nhất (chỉ cho thuật toán vét cạn)
+//     if (algorithm === 'exhaustive' && result.maxDistance) {
+//         const maxDistanceInKm = (result.maxDistance * 0.01).toFixed(1);
+//         document.querySelector('.max-distance').textContent = maxDistanceInKm + ' km';
+//     } else {
+//         document.querySelector('.max-distance').textContent = '0.0 km';
+//     }
+// }
+// Hiển thị kết quả
+// Hiển thị kết quả
+function displayResults(algorithm, result, time) {
+    saveResults(algorithm, result, time);
+    
+    let pathText = '';
+    if (result.path && result.path.length > 0) {
+        // ✅ Hiển thị đường đi đầy đủ hoặc rút gọn
+        if (result.path.length > 8) {
+            const first5 = result.path.slice(0, 5).join(' → ');
+            const last5 = result.path.slice(-5).join(' → ');
+            pathText = `${first5} → ... → ${last5}`;
+        } else {
+            pathText = result.path.join(' → ');
+        }
+    } else {
+        pathText = 'Chưa có đường đi';
+    }
+    
+    const distanceValueEl = document.querySelector('.distance-value');
+    if (distanceValueEl) {
+        distanceValueEl.innerHTML = pathText.replace(/\n/g, '<br>');
+    }
+    
+    const distanceInKm = result.distance ? (result.distance * 0.01).toFixed(1) : '0.0';
+    const totalDistanceEl = document.querySelector('.total-distance-value');
+    if (totalDistanceEl) {
+        totalDistanceEl.textContent = distanceInKm + ' km';
+    }
+    
+    // ✅ Hiển thị thời gian với độ chính xác cao cho giá trị nhỏ
+    let timeText;
+    if (time === 0) {
+        timeText = '0ms';
+    } else if (time < 0.1) {
+        timeText = `${time.toFixed(5)}ms`;
+    } else {
+        timeText = `${time.toFixed(1)}ms`;
+    }
+    const executionTimeEl = document.querySelector('.execution-time-value');
+    if (executionTimeEl) {
+        executionTimeEl.textContent = timeText;
+    }
+    
+    const maxDistanceEl = document.querySelector('.max-distance');
+    if (maxDistanceEl) {
+        if (algorithm === 'exhaustive' && result.maxDistance) {
+            const maxDistanceInKm = (result.maxDistance * 0.01).toFixed(1);
+            maxDistanceEl.textContent = maxDistanceInKm + ' km';
+        } else {
+            maxDistanceEl.textContent = '0.0 km';
+        }
+    }
+}
+
+// Lưu kết quả vào localStorage - ✅ CẬP NHẬT
+function saveResults(algorithm, result, time) {
+    const results = JSON.parse(localStorage.getItem('tsp-results') || '{}');
+    
+    // ✅ Định dạng thời gian giống displayResults
+    let timeText;
+    if (time === 0) {
+        timeText = '0ms';
+    } else if (time < 0.1) {
+        timeText = `${time.toFixed(5)}ms`;
+    } else {
+        timeText = `${time.toFixed(1)}ms`;
+    }
+    
+    results[algorithm] = {
+        path: result.path ? result.path.join(' → ') : '-',
+        distance: result.distance ? (result.distance * 0.01).toFixed(1) + ' km' : '-',
+        time: timeText,
+        timeMs: time || 0,
+        points: points.length,
+        efficiency: algorithm === 'greedy' ? 'Nhanh' : (algorithm === 'dynamic' ? 'Cân bằng' : 'Chậm'),
+        maxDistance: result.maxDistance ? (result.maxDistance * 0.01).toFixed(1) + ' km' : '0.0 km',
+        startPoint: result.startPoint !== undefined ? result.startPoint : startPoint  // ✅ Lưu điểm bắt đầu tốt nhất
+    };
+    
+    localStorage.setItem('tsp-results', JSON.stringify(results));
+}
+
+// Reset animation
+function resetAnimation() {
     if (animationInterval) {
         clearInterval(animationInterval);
         animationInterval = null;
     }
+    currentPath = [];
+    currentStep = 0;
+    isAnimating = false;
+    updateProgress(0, 1);
+}
+
+// Tạo điểm ngẫu nhiên
+// function generateRandomPoints(count) {
+//     points = [];
     
-    // Lấy số bước cần chạy
-    const stepsToRun = parseInt(stepsInput.value) || 1;
-    console.log('Steps to run:', stepsToRun);
+//     // Tạo các điểm ngẫu nhiên
+//     for (let i = 0; i < count; i++) {
+//         points.push({
+//             x: Math.random() * (canvasElement.width - 40) + 20,
+//             y: Math.random() * (canvasElement.height - 40) + 20,
+//             id: i
+//         });
+//     }
     
-    // Chạy từng bước
-    for (let i = 0; i < stepsToRun; i++) {
-        // Kiểm tra trong vòng lặp
-        if (currentStep >= currentPath.length - 1) {
-            isAnimating = false;
-            updateProgress(currentPath.length - 1, currentPath.length - 1);
-            alert('✅ Đã hoàn thành tất cả các bước!');
-            break;
-        }
-        
-        // ✅ Tăng bước TRƯỚC khi vẽ
-        currentStep++;
-        console.log('Drawing step:', currentStep, 'from', currentPath[currentStep - 1], 'to', currentPath[currentStep]);
-        
-        // Vẽ đường đi
-        drawPathStep(currentPath, currentStep);
-        
-        // Cập nhật progress bar
-        updateProgress(currentStep, currentPath.length - 1);
+//     selectedPoint = null;
+//     deleteButton.style.display = 'none';
+//     resetAnimation();
+    
+//     // Cập nhật combobox
+//     updateStartPointSelect();
+    
+//     drawPoints();
+//     updateCoordinatesPanel();
+// }
+// Tạo điểm ngẫu nhiên - SỬA LẠI
+function generateRandomPoints(count) {
+    points = [];
+    
+    // Tạo các điểm ngẫu nhiên
+    for (let i = 0; i < count; i++) {
+        points.push({
+            x: Math.random() * (canvasElement.width - 40) + 20,
+            y: Math.random() * (canvasElement.height - 40) + 20,
+            id: i
+        });
     }
     
-    console.log('Final currentStep:', currentStep);
+    selectedPoint = null;
+    deleteButton.style.display = 'none';
+    resetAnimation();
+    
+    // ✅ THÊM: Reset về chế độ tự động tìm điểm tốt nhất
+    userSelectedStart = false;
+    startPoint = 0;
+    
+    // Cập nhật combobox
+    updateStartPointSelect();
+    
+    drawPoints();
+    updateCoordinatesPanel();
+}
+
+// Khởi tạo điểm 0 ở trung tâm
+function initializeCenter() {
+    points = [];
+    startPoint = 0;
+    updateStartPointSelect();
+    drawPoints();
+    updateCoordinatesPanel();
+}
+
+// Cập nhật combobox điểm bắt đầu - SỬA LẠI
+function updateStartPointSelect() {
+    const select = document.getElementById('start-point-select');
+    if (!select) return;
+    
+    // ✅ LƯU giá trị startPoint hiện tại (không lấy từ select.value)
+    const targetValue = startPoint;
+    select.innerHTML = '';
+    
+    if (points.length === 0) {
+        select.innerHTML = '<option value="0">0</option>';
+        select.disabled = true;
+        startPoint = 0;
+        return;
+    }
+    
+    select.disabled = false;
+    
+    points.forEach((p, i) => {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `${i}`;
+        // ✅ So sánh với startPoint thay vì currentValue
+        if (i === targetValue && i < points.length) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+    
+    // ✅ Set lại giá trị select theo startPoint
+    if (targetValue < points.length) {
+        select.value = targetValue;
+    } else {
+        startPoint = 0;
+        select.value = 0;
+    }
+}
+// Thêm event listener cho select (sau updateStartPointSelect)
+// document.addEventListener('DOMContentLoaded', () => {
+//     const select = document.getElementById('start-point-select');
+//     if (select) {
+//         select.addEventListener('change', (e) => {
+//             startPoint = parseInt(e.target.value);
+//             console.log('Điểm bắt đầu được chọn:', startPoint);
+            
+//             // Reset animation khi đổi điểm bắt đầu
+//             resetAnimation();
+            
+//             // Highlight điểm được chọn
+//             drawPoints();
+            
+//             // ✅ THÊM DÒNG NÀY để cập nhật bảng tọa độ
+//             updateCoordinatesPanel();
+//         });
+//     }
+// });
+
+document.addEventListener('DOMContentLoaded', () => {
+    const select = document.getElementById('start-point-select');
+    if (select) {
+        select.addEventListener('change', (e) => {
+            const newValue = parseInt(e.target.value);
+            
+            if (!isNaN(newValue) && newValue >= 0 && newValue < points.length) {
+                startPoint = newValue;
+                userSelectedStart = true; // ✅ Đánh dấu người dùng đã chọn thủ công
+                
+                // Reset đường đi hiện tại
+                resetAnimation();
+                
+                // Cập nhật UI
+                drawPoints();
+                updateCoordinatesPanel();
+            }
+        });
+    }
+});
+// Cập nhật hàm updateCoordinatesPanel (dòng ~818)
+function updateCoordinatesPanel() {
+    const panel = document.querySelector('.coordinates-panel');
+    panel.innerHTML = '<div style="padding: 15px; overflow-y: auto; max-height: 400px; font-family: monospace;">';
+    
+    if (points.length === 0) {
+        panel.innerHTML += '<div style="color: #999; text-align: center; padding: 20px;">Chưa có điểm nào</div>';
+    } else {
+        points.forEach((p, i) => {
+            const isSelected = i === selectedPoint;
+            const isStartPoint = i === startPoint;
+            panel.innerHTML += `<div style="color: #000; font-size: 13px; margin-bottom: 8px; padding: 5px; 
+                background: ${isSelected ? '#FFC107' : (isStartPoint ? '#E8F5E9' : '#fff')}; 
+                border-radius: 4px; border: ${isSelected ? '2px solid #FF5722' : (isStartPoint ? '2px solid #4CAF50' : 'none')};">
+                <strong>Điểm ${i}${isStartPoint ? ' 🏁 (Bắt đầu)' : ''}:</strong> (${Math.round(p.x)}, ${Math.round(p.y)})
+            </div>`;
+        });
+    }
+    
+    panel.innerHTML += '</div>';
+    
+    displayDistanceMatrix();
+}
+
+// Cập nhật hàm drawPoints để highlight điểm bắt đầu (dòng ~590)
+function drawPoints(clearCanvas = true) {
+    if (clearCanvas) {
+        ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    }
+    
+    points.forEach((point, index) => {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 10, 0, Math.PI * 2);
+        
+        if (index === selectedPoint) {
+            ctx.fillStyle = '#FFC107';
+            ctx.strokeStyle = '#FF5722';
+            ctx.lineWidth = 3;
+        } else if (index === startPoint) {
+            // Highlight điểm bắt đầu bằng màu xanh lá
+            ctx.fillStyle = '#4CAF50';
+            ctx.strokeStyle = '#2E7D32';
+            ctx.lineWidth = 3;
+        } else {
+            ctx.fillStyle = '#2196F3';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+        }
+        
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.fillStyle = '#FFF';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(index, point.x, point.y);
+    });
 }
 
 // Kiểm tra click vào điểm nào
@@ -609,640 +1602,6 @@ function showComparisonTable(results) {
     document.body.appendChild(modal);
 }
 
-// Reset animation
-function resetAnimation() {
-    if (animationInterval) {
-        clearInterval(animationInterval);
-        animationInterval = null;
-    }
-    currentPath = [];
-    currentStep = 0;
-    isAnimating = false;
-    updateProgress(0, 1);
-}
-
-// Tạo điểm ngẫu nhiên
-function generateRandomPoints(count) {
-    points = [];
-    
-    // Tạo các điểm ngẫu nhiên
-    for (let i = 0; i < count; i++) {
-        points.push({
-            x: Math.random() * (canvasElement.width - 40) + 20,
-            y: Math.random() * (canvasElement.height - 40) + 20,
-            id: i
-        });
-    }
-    
-    selectedPoint = null;
-    deleteButton.style.display = 'none';
-    resetAnimation();
-    
-    // Cập nhật combobox
-    updateStartPointSelect();
-    
-    drawPoints();
-    updateCoordinatesPanel();
-}
-
-// Khởi tạo điểm 0 ở trung tâm
-function initializeCenter() {
-    points = [];
-    startPoint = 0;
-    updateStartPointSelect();
-    drawPoints();
-    updateCoordinatesPanel();
-}
-
-// Cập nhật combobox điểm bắt đầu
-function updateStartPointSelect() {
-    const select = document.getElementById('start-point-select');
-    if (!select) return;
-    
-    const currentValue = select.value;
-    select.innerHTML = '';
-    
-    if (points.length === 0) {
-        select.innerHTML = '<option value="0">0</option>';
-        select.disabled = true;
-        startPoint = 0;
-        return;
-    }
-    
-    select.disabled = false;
-    
-    points.forEach((p, i) => {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = `${i}`;
-        if (i === parseInt(currentValue) && i < points.length) {
-            option.selected = true;
-            startPoint = i;
-        }
-        select.appendChild(option);
-    });
-    
-    // Nếu điểm cũ không còn, chọn điểm 0
-    if (parseInt(currentValue) >= points.length) {
-        startPoint = 0;
-        select.value = 0;
-    }
-}
-
-// Thêm event listener cho select (sau updateStartPointSelect)
-document.addEventListener('DOMContentLoaded', () => {
-    const select = document.getElementById('start-point-select');
-    if (select) {
-        select.addEventListener('change', (e) => {
-            startPoint = parseInt(e.target.value);
-            console.log('Điểm bắt đầu được chọn:', startPoint);
-            
-            // Reset animation khi đổi điểm bắt đầu
-            resetAnimation();
-            
-            // Highlight điểm được chọn
-            drawPoints();
-        });
-    }
-});
-
-// Cập nhật hàm updateCoordinatesPanel (dòng ~818)
-function updateCoordinatesPanel() {
-    const panel = document.querySelector('.coordinates-panel');
-    panel.innerHTML = '<div style="padding: 15px; overflow-y: auto; max-height: 400px; font-family: monospace;">';
-    
-    if (points.length === 0) {
-        panel.innerHTML += '<div style="color: #999; text-align: center; padding: 20px;">Chưa có điểm nào</div>';
-    } else {
-        points.forEach((p, i) => {
-            const isSelected = i === selectedPoint;
-            const isStartPoint = i === startPoint;
-            panel.innerHTML += `<div style="color: #000; font-size: 13px; margin-bottom: 8px; padding: 5px; 
-                background: ${isSelected ? '#FFC107' : (isStartPoint ? '#E8F5E9' : '#fff')}; 
-                border-radius: 4px; border: ${isSelected ? '2px solid #FF5722' : (isStartPoint ? '2px solid #4CAF50' : 'none')};">
-                <strong>Điểm ${i}${isStartPoint ? ' 🏁 (Bắt đầu)' : ''}:</strong> (${Math.round(p.x)}, ${Math.round(p.y)})
-            </div>`;
-        });
-    }
-    
-    panel.innerHTML += '</div>';
-    
-    displayDistanceMatrix();
-}
-
-// Cập nhật hàm drawPoints để highlight điểm bắt đầu (dòng ~590)
-function drawPoints(clearCanvas = true) {
-    if (clearCanvas) {
-        ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    }
-    
-    points.forEach((point, index) => {
-        ctx.beginPath();
-        ctx.arc(point.x, point.y, 10, 0, Math.PI * 2);
-        
-        if (index === selectedPoint) {
-            ctx.fillStyle = '#FFC107';
-            ctx.strokeStyle = '#FF5722';
-            ctx.lineWidth = 3;
-        } else if (index === startPoint) {
-            // Highlight điểm bắt đầu bằng màu xanh lá
-            ctx.fillStyle = '#4CAF50';
-            ctx.strokeStyle = '#2E7D32';
-            ctx.lineWidth = 3;
-        } else {
-            ctx.fillStyle = '#2196F3';
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
-        }
-        
-        ctx.fill();
-        ctx.stroke();
-        
-        ctx.fillStyle = '#FFF';
-        ctx.font = 'bold 14px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(index, point.x, point.y);
-    });
-}
-
-// Thuật toán Tham lam (Greedy - Nearest Neighbor)
-function greedyTSP() {
-    if (points.length < 2) return { path: [], distance: 0 };
-    
-    const visited = new Array(points.length).fill(false);
-    const path = [startPoint]; // Bắt đầu từ điểm được chọn
-    visited[startPoint] = true;
-    let totalDistance = 0;
-    
-    for (let i = 0; i < points.length - 1; i++) {
-        let current = path[path.length - 1];
-        let nearest = -1;
-        let minDist = Infinity;
-        
-        for (let j = 0; j < points.length; j++) {
-            if (!visited[j]) {
-                let dist = distance(points[current], points[j]);
-                if (dist < minDist) {
-                    minDist = dist;
-                    nearest = j;
-                }
-            }
-        }
-        
-        if (nearest !== -1) {
-            path.push(nearest);
-            visited[nearest] = true;
-            totalDistance += minDist;
-        }
-    }
-    
-    totalDistance += distance(points[path[path.length - 1]], points[startPoint]);
-    path.push(startPoint); // Quay về điểm bắt đầu
-    
-    return { path, distance: totalDistance };
-}
-
-// Thuật toán Vét cạn (Brute Force)
-function exhaustiveTSP() {
-    if (points.length < 2) return { path: [], distance: 0, maxDistance: 0 };
-    if (points.length > 10) {
-        alert('Vét cạn chỉ khả thi với <= 10 điểm!');
-        return { path: [], distance: 0, maxDistance: 0 };
-    }
-    
-    // Lấy tất cả điểm trừ điểm bắt đầu
-    const indices = [...Array(points.length).keys()].filter(i => i !== startPoint);
-    let minPath = null;
-    let minDistance = Infinity;
-    let maxDistance = 0;
-    
-    function permute(arr, start = 0) {
-        if (start === arr.length - 1) {
-            const fullPath = [startPoint, ...arr, startPoint];
-            let dist = 0;
-            for (let i = 0; i < fullPath.length - 1; i++) {
-                dist += distance(points[fullPath[i]], points[fullPath[i + 1]]);
-            }
-            if (dist > maxDistance) {
-                maxDistance = dist;
-            }
-            if (dist < minDistance) {
-                minDistance = dist;
-                minPath = [...fullPath];
-            }
-            return;
-        }
-        
-        for (let i = start; i < arr.length; i++) {
-            [arr[start], arr[i]] = [arr[i], arr[start]];
-            permute(arr, start + 1);
-            [arr[start], arr[i]] = [arr[i], arr[start]];
-        }
-    }
-    
-    permute(indices);
-    return { path: minPath, distance: minDistance, maxDistance: maxDistance };
-}
-
-// Thuật toán Quy hoạch động (Dynamic Programming)
-function dynamicTSP() {
-    if (points.length < 2) return { path: [], distance: 0 };
-    if (points.length > 15) {
-        alert('QHD chỉ khả thi với <= 15 điểm!');
-        return { path: [], distance: 0 };
-    }
-    
-    const n = points.length;
-    const dp = Array(1 << n).fill(null).map(() => Array(n).fill(Infinity));
-    const parent = Array(1 << n).fill(null).map(() => Array(n).fill(-1));
-    
-    dp[1 << startPoint][startPoint] = 0;
-    
-    for (let mask = 0; mask < (1 << n); mask++) {
-        if (!(mask & (1 << startPoint))) continue;
-        
-        for (let last = 0; last < n; last++) {
-            if (!(mask & (1 << last))) continue;
-            if (dp[mask][last] === Infinity) continue;
-            
-            for (let next = 0; next < n; next++) {
-                if (mask & (1 << next)) continue;
-                
-                const newMask = mask | (1 << next);
-                const newDist = dp[mask][last] + distance(points[last], points[next]);
-                
-                if (newDist < dp[newMask][next]) {
-                    dp[newMask][next] = newDist;
-                    parent[newMask][next] = last;
-                }
-            }
-        }
-    }
-    
-    const fullMask = (1 << n) - 1;
-    let minDist = Infinity;
-    let lastNode = -1;
-    
-    for (let i = 0; i < n; i++) {
-        if (i === startPoint) continue;
-        const totalDist = dp[fullMask][i] + distance(points[i], points[startPoint]);
-        if (totalDist < minDist) {
-            minDist = totalDist;
-            lastNode = i;
-        }
-    }
-    
-    const path = [];
-    let mask = fullMask;
-    let current = lastNode;
-    
-    while (current !== -1) {
-        path.unshift(current);
-        const prev = parent[mask][current];
-        mask ^= (1 << current);
-        current = prev;
-    }
-    
-    path.push(startPoint);
-    
-    return { path, distance: minDist };
-}
-
-// Hiển thị kết quả
-// function displayResults(algorithm, result, time) {
-//     saveResults(algorithm, result, time);
-    
-//     let pathText = '';
-//     if (result.path && result.path.length > 0) {
-//         if (result.path.length > 10) {
-//             const first4 = result.path.slice(0, 4).join(' → ');
-//             const last4 = result.path.slice(-4).join(' → ');
-//             pathText = `${first4} → ... → ${last4}`;
-//         } else {
-//             pathText = result.path.join(' → ');
-//         }
-//     } else {
-//         pathText = 'Chưa có đường đi';
-//     }
-//     document.querySelector('.distance-value').textContent = pathText;
-    
-//     const distanceInKm = result.distance ? (result.distance * 0.01).toFixed(1) : '0.0';
-//     document.querySelector('.total-distance-value').textContent = distanceInKm + ' km';
-    
-//     // ✅ Hiển thị thời gian với độ chính xác cao cho giá trị nhỏ
-//     let timeText;
-//     if (time === 0) {
-//         timeText = '0ms';
-//     } else if (time < 0.1) {
-//         timeText = `${time.toFixed(8)}ms`;
-//     } else {
-//         timeText = `${time.toFixed(1)}ms`;
-//     }
-//     document.querySelector('.execution-time-value').textContent = timeText;
-    
-//     // Hiển thị quãng đường dài nhất (chỉ cho thuật toán vét cạn)
-//     if (algorithm === 'exhaustive' && result.maxDistance) {
-//         const maxDistanceInKm = (result.maxDistance * 0.01).toFixed(1);
-//         document.querySelector('.max-distance').textContent = maxDistanceInKm + ' km';
-//     } else {
-//         document.querySelector('.max-distance').textContent = '0.0 km';
-//     }
-// }
-// Hiển thị kết quả
-function displayResults(algorithm, result, time) {
-    saveResults(algorithm, result, time);
-    
-    let pathText = '';
-    if (result.path && result.path.length > 0) {
-        if (result.path.length > 10) {
-            const first4 = result.path.slice(0, 4).join(' → ');
-            const last4 = result.path.slice(-4).join(' → ');
-            pathText = `${first4} → ... → ${last4}`;
-        } else {
-            pathText = result.path.join(' → ');
-        }
-    } else {
-        pathText = 'Chưa có đường đi';
-    }
-    
-    // ✅ KIỂM TRA phần tử có tồn tại trước khi gán
-    const distanceValueEl = document.querySelector('.distance-value');
-    if (distanceValueEl) {
-        distanceValueEl.textContent = pathText;
-    }
-    
-    const distanceInKm = result.distance ? (result.distance * 0.01).toFixed(1) : '0.0';
-    const totalDistanceEl = document.querySelector('.total-distance-value');
-    if (totalDistanceEl) {
-        totalDistanceEl.textContent = distanceInKm + ' km';
-    }
-    
-    // ✅ Hiển thị thời gian với độ chính xác cao cho giá trị nhỏ
-    let timeText;
-    if (time === 0) {
-        timeText = '0ms';
-    } else if (time < 0.1) {
-        timeText = `${time.toFixed(5)}ms`;
-    } else {
-        timeText = `${time.toFixed(1)}ms`;
-    }
-    const executionTimeEl = document.querySelector('.execution-time-value');
-    if (executionTimeEl) {
-        executionTimeEl.textContent = timeText;
-    }
-    
-    // Hiển thị quãng đường dài nhất (chỉ cho thuật toán vét cạn)
-    const maxDistanceEl = document.querySelector('.max-distance');
-    if (maxDistanceEl) {
-        if (algorithm === 'exhaustive' && result.maxDistance) {
-            const maxDistanceInKm = (result.maxDistance * 0.01).toFixed(1);
-            maxDistanceEl.textContent = maxDistanceInKm + ' km';
-        } else {
-            maxDistanceEl.textContent = '0.0 km';
-        }
-    }
-}
-
-// Lưu kết quả vào localStorage - ✅ CẬP NHẬT
-function saveResults(algorithm, result, time) {
-    const results = JSON.parse(localStorage.getItem('tsp-results') || '{}');
-    
-    // ✅ Định dạng thời gian giống displayResults
-    let timeText;
-    if (time === 0) {
-        timeText = '0ms';
-    } else if (time < 0.1) {
-        timeText = `${time.toFixed(5)}ms`;
-    } else {
-        timeText = `${time.toFixed(1)}ms`;
-    }
-    
-    results[algorithm] = {
-        path: result.path ? result.path.join(' → ') : '-',
-        distance: result.distance ? (result.distance * 0.01).toFixed(1) + ' km' : '-',
-        time: timeText,
-        timeMs: time || 0,
-        points: points.length,
-        efficiency: algorithm === 'greedy' ? 'Nhanh' : (algorithm === 'dynamic' ? 'Cân bằng' : 'Chậm'),
-        maxDistance: result.maxDistance ? (result.maxDistance * 0.01).toFixed(1) + ' km' : '0.0 km'
-    };
-    
-    localStorage.setItem('tsp-results', JSON.stringify(results));
-}
-
-// Animation từng bước
-function animatePathStep() {
-    if (currentStep > currentPath.length - 1) {
-        if (animationInterval) {
-            clearInterval(animationInterval);
-            animationInterval = null;
-        }
-        isAnimating = false;
-        updateProgress(currentPath.length - 1, currentPath.length - 1);
-        return;
-    }
-    
-    drawPathStep(currentPath, currentStep + 1);
-    updateProgress(currentStep, currentPath.length - 1);
-    currentStep++;
-}
-
-// Chạy thuật toán với animation
-async function runAlgorithm(algorithm) {
-    if (points.length < 2) {
-        alert('⚠️ Vui lòng tạo ít nhất 2 điểm!');
-        return;
-    }
-    
-    resetAnimation();
-    
-    selectedAlgorithm = algorithm;
-    // ✅ ĐÚNG - Đo thời gian THUẦN của thuật toán
-    const startTime = performance.now(); // Đo TRƯỚC khi chạy
-    let result;
-    switch (algorithm) {
-        case 'greedy':
-            result = greedyTSP();
-            break;
-        case 'exhaustive':
-            result = exhaustiveTSP();
-            break;
-        case 'dynamic':
-            result = dynamicTSP();
-            break;
-    }
-    const endTime = performance.now(); // Đo NGAY SAU khi chạy xong
-    const executionTime = endTime - startTime;
-    
-    displayResults(algorithm, result, executionTime);
-    
-    if (result.path && result.path.length > 0) {
-        algorithmResult = result;
-        currentPath = result.path;
-        currentStep = 0;
-        
-        // Highlight nút thuật toán đã chọn
-        document.querySelectorAll('.algorithm-button').forEach(btn => {
-            btn.style.background = '#FFF0F5';
-            btn.style.color = '';
-        });
-        
-        if (algorithm === 'greedy') {
-            document.querySelector('.greedy-button').style.background = 'linear-gradient(135deg, #FFB6C1 0%, #FFC0CB 100%)';
-            document.querySelector('.greedy-button').style.color = 'white';
-        } else if (algorithm === 'exhaustive') {
-            document.querySelector('.exhaustive-button').style.background = 'linear-gradient(135deg, #FFDAB9 0%, #FFE4B5 100%)';
-            document.querySelector('.exhaustive-button').style.color = 'white';
-        } else if (algorithm === 'dynamic') {
-            document.querySelector('.dynamic-button').style.background = 'linear-gradient(135deg, #E6E6FA 0%, #F0E6FF 100%)';
-            document.querySelector('.dynamic-button').style.color = 'white';
-        }
-        
-        // Chỉ vẽ các điểm, không tự động chạy animation
-        drawPoints();
-    }
-}
-
-// Run all steps - SỬA LẠI HÀM NÀY
-function runAllSteps() {
-    if (points.length < 2) {
-        alert('⚠️ Vui lòng tạo ít nhất 2 điểm!');
-        return;
-    }
-    
-    if (animationInterval) {
-        clearInterval(animationInterval);
-        animationInterval = null;
-    }
-    
-    resetAnimation();
-    
-    const loadingDiv = document.createElement('div');
-    loadingDiv.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(139, 69, 137, 0.9); z-index: 9999;
-        display: flex; justify-content: center; align-items: center;
-        flex-direction: column; gap: 20px;
-    `;
-    loadingDiv.innerHTML = `
-        <div style="color: white; font-size: 24px; font-weight: bold;">🔄 Đang chạy tất cả thuật toán...</div>
-        <div style="color: #FFB6C1; font-size: 16px;" id="loading-status">Đang khởi tạo...</div>
-    `;
-    document.body.appendChild(loadingDiv);
-    
-    const statusDiv = document.getElementById('loading-status');
-    
-    setTimeout(async () => {
-        const algorithms = ['greedy', 'dynamic', 'exhaustive'];
-        const results = {};
-        let maxDistanceFound = 0;
-        
-        // ✅ Xóa toàn bộ dữ liệu cũ trước khi chạy
-        localStorage.removeItem('tsp-results');
-        
-        for (const algo of algorithms) {
-            const algoName = algo === 'greedy' ? 'Tham lam' : algo === 'dynamic' ? 'Quy hoạch động' : 'Vét cạn';
-            statusDiv.textContent = `Đang chạy: ${algoName}...`;
-            
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            let result;
-            let skipped = false;
-            
-            const startTime = performance.now(); 
-            
-            try {
-                switch (algo) {
-                    case 'greedy':
-                        result = greedyTSP();
-                        break;
-                    case 'exhaustive':
-                        if (points.length > 10) {
-                            statusDiv.textContent = `⚠️ Vét cạn bỏ qua (quá nhiều điểm: ${points.length})`;
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                            skipped = true;
-                            // ✅ KHÔNG lưu kết quả vào results khi bỏ qua
-                            break;
-                        }
-                        result = exhaustiveTSP();
-                        if (result.maxDistance) {
-                            maxDistanceFound = result.maxDistance;
-                        }
-                        break;
-                    case 'dynamic':
-                        if (points.length > 15) {
-                            statusDiv.textContent = `⚠️ QHĐ bỏ qua (quá nhiều điểm: ${points.length})`;
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                            skipped = true;
-                            // ✅ KHÔNG lưu kết quả vào results khi bỏ qua
-                            break;
-                        }
-                        result = dynamicTSP();
-                        break;
-                }
-                
-                const endTime = performance.now();
-                
-                // ✅ Chỉ lưu kết quả nếu KHÔNG bị bỏ qua
-                if (!skipped && result && result.path && result.path.length > 0) {
-                    results[algo] = {
-                        path: result.path,
-                        distance: result.distance,
-                        time: endTime - startTime,
-                        maxDistance: result.maxDistance || 0
-                    };
-                    
-                    saveResults(algo, result, endTime - startTime);
-                }
-            } catch (error) {
-                console.error(`Lỗi khi chạy ${algo}:`, error);
-            }
-        }
-        
-        // ✅ Lưu số lượng điểm vào localStorage
-        const savedResults = JSON.parse(localStorage.getItem('tsp-results') || '{}');
-        savedResults.pointsCount = points.length;
-        localStorage.setItem('tsp-results', JSON.stringify(savedResults));
-        
-        if (maxDistanceFound > 0) {
-            const maxDistanceInKm = (maxDistanceFound * 0.01).toFixed(1);
-            document.querySelector('.max-distance').textContent = maxDistanceInKm + ' km';
-        }
-        
-        loadingDiv.remove();
-        showComparisonTable(results);
-    }, 100);
-}
-
-// Event listeners cho các nút thuật toán
-document.querySelector('.greedy-button').addEventListener('click', () => {
-    runAlgorithm('greedy');
-});
-
-document.querySelector('.exhaustive-button').addEventListener('click', () => {
-    runAlgorithm('exhaustive');
-});
-
-document.querySelector('.dynamic-button').addEventListener('click', () => {
-    runAlgorithm('dynamic');
-});
-
-// ✅ SỬA: Event listener cho nút Next
-document.querySelector('.next-button').addEventListener('click', async () => {
-    await nextStep();
-});
-
-document.querySelector('.run-all-button').addEventListener('click', runAllSteps);
-
-// Khởi tạo - Chỉ có điểm 0 ở trung tâm và highlight nút Tham lam
-initializeCenter();
-updateProgress(0, 1);
-
-// Highlight nút Tham lam mặc định
-document.querySelector('.greedy-button').style.background = 'linear-gradient(135deg, #FFB6C1 0%, #FFC0CB 100%)';
-document.querySelector('.greedy-button').style.color = 'white';
-
 // Reset highlight các nút khi tạo điểm mới
 document.querySelector('.random-button').addEventListener('click', () => {
     const count = parseInt(quantityInput.value);
@@ -1427,7 +1786,7 @@ canvasElement.addEventListener('click', (e) => {
     }
 });
 
-// Click ra ngoài để ẩn nút xóa
+
 canvas.addEventListener('mouseleave', () => {
     if (selectedPoint !== null) {
         selectedPoint = null;
@@ -1435,6 +1794,206 @@ canvas.addEventListener('mouseleave', () => {
         drawPoints();
     }
 });
+
+// Next step - Chạy theo số bước người dùng nhập
+function nextStep() {
+    console.log('🔍 nextStep called');
+    console.log('currentPath:', currentPath);
+    console.log('currentStep:', currentStep);
+    console.log('points.length:', points.length);
+    
+    // Nếu chưa có thuật toán, tự động chạy Tham lam
+    if (!currentPath || currentPath.length === 0) {
+        console.log('⚠️ No path, checking points...');
+        if (points.length < 2) {
+            alert('⚠️ Vui lòng tạo ít nhất 2 điểm!');
+            return;
+        }
+        
+        console.log('✅ Running greedy algorithm...');
+        runAlgorithm('greedy');
+        return; // ✅ Dừng ở đây, không vẽ gì
+    }
+    
+    console.log('✅ Path exists, length:', currentPath.length);
+    
+    // Kiểm tra đã hoàn thành chưa
+    if (currentStep >= currentPath.length - 1) {
+        alert('✅ Đã hoàn thành tất cả các bước!');
+        return;
+    }
+    
+    // Dừng animation nếu đang chạy
+    if (animationInterval) {
+        clearInterval(animationInterval);
+        animationInterval = null;
+    }
+    
+    // Lấy số bước cần chạy
+    const stepsToRun = parseInt(stepsInput.value) || 1;
+    console.log('Steps to run:', stepsToRun);
+    
+    // Chạy từng bước
+    for (let i = 0; i < stepsToRun; i++) {
+        // Kiểm tra trong vòng lặp
+        if (currentStep >= currentPath.length - 1) {
+            isAnimating = false;
+            updateProgress(currentPath.length - 1, currentPath.length - 1);
+            alert('✅ Đã hoàn thành tất cả các bước!');
+            break;
+        }
+        
+        // ✅ Tăng bước TRƯỚC khi vẽ
+        currentStep++;
+        console.log('Drawing step:', currentStep, 'from', currentPath[currentStep - 1], 'to', currentPath[currentStep]);
+        
+        // Vẽ đường đi
+        drawPathStep(currentPath, currentStep);
+        
+        // Cập nhật progress bar
+        updateProgress(currentStep, currentPath.length - 1);
+    }
+    
+    console.log('Final currentStep:', currentStep);
+}
+
+// Run all steps - SỬA LẠI HÀM NÀY
+function runAllSteps() {
+    if (points.length < 2) {
+        alert('⚠️ Vui lòng tạo ít nhất 2 điểm!');
+        return;
+    }
+    
+    if (animationInterval) {
+        clearInterval(animationInterval);
+        animationInterval = null;
+    }
+    
+    resetAnimation();
+    
+    const loadingDiv = document.createElement('div');
+    loadingDiv.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(139, 69, 137, 0.9); z-index: 9999;
+        display: flex; justify-content: center; align-items: center;
+        flex-direction: column; gap: 20px;
+    `;
+    loadingDiv.innerHTML = `
+        <div style="color: white; font-size: 24px; font-weight: bold;">🔄 Đang chạy tất cả thuật toán...</div>
+        <div style="color: #FFB6C1; font-size: 16px;" id="loading-status">Đang khởi tạo...</div>
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    const statusDiv = document.getElementById('loading-status');
+    
+    setTimeout(async () => {
+        const algorithms = ['greedy', 'dynamic', 'exhaustive'];
+        const results = {};
+        let maxDistanceFound = 0;
+        
+        // ✅ Xóa toàn bộ dữ liệu cũ trước khi chạy
+        localStorage.removeItem('tsp-results');
+        
+        for (const algo of algorithms) {
+            const algoName = algo === 'greedy' ? 'Tham lam' : algo === 'dynamic' ? 'Quy hoạch động' : 'Vét cạn';
+            statusDiv.textContent = `Đang chạy: ${algoName}...`;
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            let result;
+            let skipped = false;
+            
+            const startTime = performance.now(); 
+            
+            try {
+                switch (algo) {
+                    case 'greedy':
+                        result = greedyTSP();
+                        break;
+                    case 'exhaustive':
+                        if (points.length > 10) {
+                            statusDiv.textContent = `⚠️ Vét cạn bỏ qua (quá nhiều điểm: ${points.length})`;
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            skipped = true;
+                            break;
+                        }
+                        result = exhaustiveTSP();
+                        if (result.maxDistance) {
+                            maxDistanceFound = result.maxDistance;
+                        }
+                        break;
+                    case 'dynamic':
+                        if (points.length > 15) {
+                            statusDiv.textContent = `⚠️ QHĐ bỏ qua (quá nhiều điểm: ${points.length})`;
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            skipped = true;
+                            break;
+                        }
+                        result = dynamicTSP();
+                        break;
+                }
+                
+                const endTime = performance.now();
+                
+                // ✅ Chỉ lưu kết quả nếu KHÔNG bị bỏ qua
+                if (!skipped && result && result.path && result.path.length > 0) {
+                    results[algo] = {
+                        path: result.path,
+                        distance: result.distance,
+                        time: endTime - startTime,
+                        maxDistance: result.maxDistance || 0,
+                        startPoint: result.startPoint
+                    };
+                    
+                    saveResults(algo, result, endTime - startTime);
+                }
+            } catch (error) {
+                console.error(`Lỗi khi chạy ${algo}:`, error);
+            }
+        }
+        
+        // ✅ Lưu số lượng điểm vào localStorage
+        const savedResults = JSON.parse(localStorage.getItem('tsp-results') || '{}');
+        savedResults.pointsCount = points.length;
+        localStorage.setItem('tsp-results', JSON.stringify(savedResults));
+        
+        if (maxDistanceFound > 0) {
+            const maxDistanceInKm = (maxDistanceFound * 0.01).toFixed(1);
+            document.querySelector('.max-distance').textContent = maxDistanceInKm + ' km';
+        }
+        
+        loadingDiv.remove();
+        showComparisonTable(results);
+    }, 100);
+}
+
+// Event listeners cho các nút thuật toán
+document.querySelector('.greedy-button').addEventListener('click', () => {
+    runAlgorithm('greedy');
+});
+
+document.querySelector('.exhaustive-button').addEventListener('click', () => {
+    runAlgorithm('exhaustive');
+});
+
+document.querySelector('.dynamic-button').addEventListener('click', () => {
+    runAlgorithm('dynamic');
+});
+
+// ✅ SỬA: Event listener cho nút Next
+document.querySelector('.next-button').addEventListener('click', async () => {
+    await nextStep();
+});
+
+document.querySelector('.run-all-button').addEventListener('click', runAllSteps);
+
+// Khởi tạo - Chỉ có điểm 0 ở trung tâm và highlight nút Tham lam
+initializeCenter();
+updateProgress(0, 1);
+
+// Highlight nút Tham lam mặc định
+document.querySelector('.greedy-button').style.background = 'linear-gradient(135deg, #FFB6C1 0%, #FFC0CB 100%)';
+document.querySelector('.greedy-button').style.color = 'white';
 
 
 

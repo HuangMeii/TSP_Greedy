@@ -15,9 +15,9 @@ canvas.appendChild(canvasElement);
 
 const ctx = canvasElement.getContext('2d');
 
-// Khởi tạo với điểm depot ở giữa
+// Khởi tạo
 function initialize() {
-    points = [{ x: 550, y: 250, id: 0 }];
+    points = [];
     draw();
 }
 
@@ -34,6 +34,8 @@ function draw() {
         for (let i = 1; i < bestPath.length; i++) {
             ctx.lineTo(points[bestPath[i]].x, points[bestPath[i]].y);
         }
+        // Quay về điểm xuất phát
+        ctx.lineTo(points[bestPath[0]].x, points[bestPath[0]].y);
         ctx.stroke();
         
         // Vẽ mũi tên chỉ hướng
@@ -42,13 +44,19 @@ function draw() {
             const p2 = points[bestPath[i + 1]];
             drawArrow(p1.x, p1.y, p2.x, p2.y);
         }
+        // Mũi tên quay về điểm xuất phát
+        if (bestPath.length > 0) {
+            const p1 = points[bestPath[bestPath.length - 1]];
+            const p2 = points[bestPath[0]];
+            drawArrow(p1.x, p1.y, p2.x, p2.y);
+        }
     }
     
     // Vẽ các điểm
     points.forEach((point, index) => {
         ctx.beginPath();
         ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
-        ctx.fillStyle = index === 0 ? '#EF5350' : '#42A5F5';
+        ctx.fillStyle = '#42A5F5';
         ctx.fill();
         ctx.strokeStyle = 'white';
         ctx.lineWidth = 2;
@@ -95,15 +103,19 @@ function calculatePathDistance(path) {
     for (let i = 0; i < path.length - 1; i++) {
         total += distance(points[path[i]], points[path[i + 1]]);
     }
+    // Thêm quãng đường quay về điểm xuất phát
+    if (path.length > 0) {
+        total += distance(points[path[path.length - 1]], points[path[0]]);
+    }
     return total;
 }
 
 // Tạo điểm ngẫu nhiên
 function generatePoints() {
     const numPoints = parseInt(document.getElementById('numPoints').value);
-    points = [{ x: 550, y: 250, id: 0 }]; // Depot ở giữa
+    points = [];
     
-    for (let i = 1; i < numPoints; i++) {
+    for (let i = 0; i < numPoints; i++) {
         points.push({
             x: 100 + Math.random() * 900,
             y: 50 + Math.random() * 400,
@@ -113,7 +125,7 @@ function generatePoints() {
     
     bestPath = null;
     draw();
-    log('Đã tạo ' + (numPoints - 1) + ' điểm giao hàng');
+    log('Đã tạo ' + numPoints + ' điểm');
 }
 
 // Logging
@@ -142,14 +154,12 @@ function runASA(params) {
     if (points.length < 2) return { path: [], distance: Infinity };
     
     // Tạo solution ngẫu nhiên
-    let currentPath = [0];
-    const remaining = [...Array(points.length - 1).keys()].map(i => i + 1);
-    while (remaining.length > 0) {
-        const idx = Math.floor(Math.random() * remaining.length);
-        currentPath.push(remaining[idx]);
-        remaining.splice(idx, 1);
+    let currentPath = [...Array(points.length).keys()];
+    // Xáo trộn mảng
+    for (let i = currentPath.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [currentPath[i], currentPath[j]] = [currentPath[j], currentPath[i]];
     }
-    currentPath.push(0);
     
     let currentDist = calculatePathDistance(currentPath);
     let bestPath = [...currentPath];
@@ -410,7 +420,7 @@ async function runOptimization() {
         }
         
         // ✅ Bước 0: Chạy Greedy thông thường để so sánh
-        log(`📊 Chạy thuật toán Tham lam (Greedy) từ depot...`);
+        log(`📊 Chạy thuật toán Tham lam (Greedy) từ điểm đầu tiên...`);
         const greedyStartTime = performance.now();
         const greedyResult = runGreedy();
         const greedyEndTime = performance.now();
@@ -642,11 +652,11 @@ async function runOptimization() {
     }
 }
 
-// ✅ Hàm Greedy thông thường từ depot - HOÀN CHỈNH
+// ✅ Hàm Greedy thông thường
 function runGreedy() {
     if (points.length < 2) return { path: [], distance: Infinity };
     
-    // Greedy từ điểm 0 (depot)
+    // Bắt đầu từ điểm đầu tiên
     const path = [0];
     const visited = new Set([0]);
     
@@ -671,15 +681,13 @@ function runGreedy() {
         }
     }
     
-    path.push(0); // Quay về depot
-    
     const totalDist = calculatePathDistance(path);
     return { path, distance: totalDist };
 }
 
 // Xóa tất cả
 function clearAll() {
-    points = [{ x: 550, y: 250, id: 0 }];
+    points = [];
     bestPath = null;
     draw();
     document.getElementById('logContainer').innerHTML = 'Đã xóa tất cả điểm';

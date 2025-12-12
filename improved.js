@@ -113,6 +113,20 @@ function calculatePathDistance(path) {
 // Tạo điểm ngẫu nhiên
 function generatePoints() {
     const numPoints = parseInt(document.getElementById('numPoints').value);
+    
+    // Kiểm tra giới hạn số điểm
+    if (numPoints > 100) {
+        log('⚠️ Số điểm không được vượt quá 100!');
+        alert('⚠️ Số điểm tối đa là 100!');
+        return;
+    }
+    
+    if (numPoints < 2) {
+        log('⚠️ Số điểm tối thiểu là 2!');
+        alert('⚠️ Số điểm tối thiểu là 2!');
+        return;
+    }
+    
     points = [];
     
     for (let i = 0; i < numPoints; i++) {

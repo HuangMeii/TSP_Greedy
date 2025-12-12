@@ -399,8 +399,48 @@ async function runOptimization() {
     try {
         // ✅ Lấy kích thước quần thể từ input
         const populationSize = parseInt(document.getElementById('populationSize').value);
+        const asaIterations = parseInt(document.getElementById('asaIterations').value);
+        const generations = parseInt(document.getElementById('generations').value);
         
-        // ✅ Kiểm tra validation
+        // ✅ Kiểm tra validation số vòng lặp
+        if (asaIterations > 1500) {
+            log(`⚠️ Số vòng lặp ASA (${asaIterations}) không được vượt quá 1500!`);
+            alert(`⚠️ Số vòng lặp ASA tối đa là 1500!`);
+            isRunning = false;
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressText').textContent = 'Sẵn sàng';
+            return;
+        }
+        
+        if (asaIterations < 100) {
+            log(`⚠️ Số vòng lặp ASA tối thiểu là 100!`);
+            alert(`⚠️ Số vòng lặp ASA tối thiểu là 100!`);
+            isRunning = false;
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressText').textContent = 'Sẵn sàng';
+            return;
+        }
+        
+        // ✅ Kiểm tra validation số thế hệ
+        if (generations > 20) {
+            log(`⚠️ Số thế hệ GA (${generations}) không được vượt quá 20!`);
+            alert(`⚠️ Số thế hệ GA tối đa là 20!`);
+            isRunning = false;
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressText').textContent = 'Sẵn sàng';
+            return;
+        }
+        
+        if (generations < 1) {
+            log(`⚠️ Số thế hệ GA tối thiểu là 1!`);
+            alert(`⚠️ Số thế hệ GA tối thiểu là 1!`);
+            isRunning = false;
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressText').textContent = 'Sẵn sàng';
+            return;
+        }
+        
+        // ✅ Kiểm tra validation kích thước quần thể
         if (populationSize > points.length) {
             log(`⚠️ Kích thước quần thể (${populationSize}) không được vượt quá số điểm (${points.length})!`);
             alert(`⚠️ Kích thước quần thể không được vượt quá số điểm giao hàng (${points.length})!`);
@@ -503,7 +543,6 @@ async function runOptimization() {
         log(`   Khoảng độ dài: ${(selectedPopulation[0].distance * 0.01).toFixed(2)} km → ${(selectedPopulation[selectedPopulation.length - 1].distance * 0.01).toFixed(2)} km`);
         
         // ✅ Bước 2: Genetic Algorithm + ASA
-        const generations = parseInt(document.getElementById('generations').value);
         log(`🧬 Bắt đầu GA + ASA với ${populationSize} cá thể, ${generations} thế hệ...`);
         
         let population = selectedPopulation.map(ind => ind.asaParams);

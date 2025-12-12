@@ -280,13 +280,13 @@
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">Số thế hệ:</label>
-                    <input type="number" class="control-input" id="generations" value="5" min="2" max="20">
+                    <label class="control-label">Số thế hệ (max 20):</label>
+                    <input type="number" class="control-input" id="generations" value="5" min="1" max="20">
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">Số vòng lặp ASA:</label>
-                    <input type="number" class="control-input" id="asaIterations" value="1000" min="500" max="5000">
+                    <label class="control-label">Số vòng lặp ASA (max 1500):</label>
+                    <input type="number" class="control-input" id="asaIterations" value="1000" min="100" max="1500">
                 </div>
 
                 <button class="btn btn-primary" onclick="runOptimization()">▶️ Chạy tối ưu hóa</button>
